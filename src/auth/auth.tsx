@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function readStoredRole(): UserRole | null {
   const stored = localStorage.getItem(ROLE_KEY);
-  if (stored === "manager" || stored === "fieldOfficer") {
+  if (stored === "admin" || stored === "manager" || stored === "fieldOfficer") {
     return stored;
   }
   return null;
@@ -60,6 +60,17 @@ export function useAuth() {
     throw new Error("useAuth must be used within AuthProvider.");
   }
   return ctx;
+}
+
+export function RequireAdmin() {
+  const { isAuthenticated, role } = useAuth();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  if (role !== "admin") {
+    return <Navigate to={getHomePath(role ?? "manager")} replace />;
+  }
+  return <Outlet />;
 }
 
 export function RequireManager() {

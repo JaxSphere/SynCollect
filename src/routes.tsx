@@ -1,9 +1,11 @@
 import { createBrowserRouter } from "react-router";
 import { Login } from "./auth/Login";
-import { RequireFieldOfficer, RequireManager } from "./auth/auth";
+import { RequireAdmin, RequireFieldOfficer, RequireManager } from "./auth/auth";
 import { RootLayout } from "./manager/components/RootLayout";
+import { AdminLayout } from "./admin/components/AdminLayout";
 import { Dashboard } from "./manager/pages/Dashboard";
 import { AccountManagement } from "./manager/pages/AccountManagement";
+import { AdminUserManagement } from "./admin/pages/UserManagement";
 import { AccountDetail } from "./manager/pages/AccountDetail";
 import { DemandLetterGenerator } from "./manager/pages/DemandLetterGenerator";
 import { CalendarView } from "./manager/pages/CalendarView";
@@ -32,6 +34,16 @@ export const router = createBrowserRouter([
           { path: "calendar", Component: CalendarView },
           { path: "reports", Component: Dashboard },
         ],
+      },
+    ],
+  },
+  {
+    Component: RequireAdmin,
+    children: [
+      {
+        path: "/admin",
+        Component: AdminLayout,
+        children: [{ index: true, Component: AdminUserManagement }],
       },
     ],
   },

@@ -93,6 +93,17 @@ const mockAccounts = [
 async function main() {
   const passwordHash = await bcrypt.hash("password123", 10);
 
+  const admin = await prisma.user.upsert({
+    where: { username: "admin" },
+    update: {},
+    create: {
+      username: "admin",
+      passwordHash,
+      role: UserRole.admin,
+      fullName: "System Administrator",
+    },
+  });
+
   const manager = await prisma.user.upsert({
     where: { username: "manager" },
     update: {},
@@ -153,6 +164,7 @@ async function main() {
   }
 
   console.log("Seed complete.");
+  console.log("  Admin login:      admin / password123");
   console.log("  Manager login:    manager / password123");
   console.log("  Field officer:    field.officer / password123");
   console.log(`  Seeded ${mockAccounts.length} accounts assigned to ${fieldOfficer.username}`);

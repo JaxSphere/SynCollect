@@ -1,22 +1,54 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, useLocation } from 'react-router';
 import { ArrowLeft, DollarSign, Calendar, FileText } from 'lucide-react';
 import { useAccount } from '../hooks/useAccounts';
 import { OfflineBanner } from './OfflineBanner';
+import { createVisit } from '../../shared/api/visits';
 
 export function PTPEntryScreen() {
   const { accountId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { account, loading, error } = useAccount(accountId);
 
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const visitData = (location.state as any)?.visitData;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (amount && date) {
+    if (!amount || !date) {
+      setSubmitError('Please fill in both amount and payment date');
+      return;
+    }
+
+    if (!accountId) {
+      setSubmitError('Account ID not found');
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await createVisit({
+        accountId,
+        remarkType: 'willing',
+        ptpAmount: parseFloat(amount),
+        ptpDate: date,
+        notes: visitData?.notes || notes || undefined,
+        gpsVerified: visitData?.gpsVerified || false,
+      });
+
       navigate('/fo/success', { state: { remarkType: 'willing', ptpAmount: amount, ptpDate: date } });
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to save PTP');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -128,16 +160,21 @@ export function PTPEntryScreen() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
+        {submitError && (
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-700">{submitError}</p>
+          </div>
+        )}
         <button
           onClick={handleSubmit}
-          disabled={!isFormValid}
+          disabled={!isFormValid || submitting}
           className={`w-full py-4 rounded-xl font-semibold transition-colors ${
-            isFormValid
+            isFormValid && !submitting
               ? 'bg-green-600 text-white hover:bg-green-700 shadow-lg'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
-          Submit PTP
+          {submitting ? 'Submitting...' : 'Submit PTP'}
         </button>
       </div>
     </div>

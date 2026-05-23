@@ -7,6 +7,20 @@ export type ApiUser = {
   fullName: string | null;
 };
 
+export type CreateUserRequest = {
+  username: string;
+  password: string;
+  role: UserRole;
+  fullName?: string | null;
+};
+
+export type UpdateUserRequest = {
+  username?: string;
+  password?: string;
+  role?: UserRole;
+  fullName?: string | null;
+};
+
 export type ApiHistoryEntry = {
   date: string;
   action: string;

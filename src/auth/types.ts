@@ -1,7 +1,10 @@
-export type UserRole = "manager" | "fieldOfficer";
+export type UserRole = "admin" | "manager" | "fieldOfficer";
 
 export function resolveRole(username: string): UserRole {
   const normalized = username.trim().toLowerCase();
+  if (normalized === "admin" || normalized.includes("admin")) {
+    return "admin";
+  }
   if (
     normalized.includes("field") ||
     normalized.includes("officer") ||
@@ -13,5 +16,7 @@ export function resolveRole(username: string): UserRole {
 }
 
 export function getHomePath(role: UserRole): string {
-  return role === "fieldOfficer" ? "/fo" : "/";
+  if (role === "admin") return "/admin";
+  if (role === "fieldOfficer") return "/fo";
+  return "/";
 }

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, MapPin, Camera, Upload, CheckCircle2 } from 'lucide-react';
 import { useAccount } from '../hooks/useAccounts';
 import { OfflineBanner } from './OfflineBanner';
+import { createVisit } from '../../shared/api/visits';
 
 type RemarkType = 'unlocated' | 'moved_out' | 'refused' | 'willing' | '';
 
@@ -17,6 +18,8 @@ export function VisitScreen() {
   const [remarkType, setRemarkType] = useState<RemarkType>('');
   const [notes, setNotes] = useState('');
   const [additionalImages, setAdditionalImages] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const houseInputRef = useRef<HTMLInputElement>(null);
   const clientInputRef = useRef<HTMLInputElement>(null);
@@ -53,16 +56,47 @@ export function VisitScreen() {
     setGpsVerified(true);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!remarkType || !housePhoto || !clientPhoto) {
-      alert('Please complete all required fields');
+      setSubmitError('Please complete all required fields');
       return;
     }
 
-    if (remarkType === 'willing') {
-      navigate(`/fo/ptp/${accountId}`);
-    } else {
-      navigate('/fo/success', { state: { remarkType } });
+    if (!accountId) {
+      setSubmitError('Account ID not found');
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      if (remarkType === 'willing') {
+        // For willing to pay, pass data to PTP screen without submitting yet
+        navigate(`/fo/ptp/${accountId}`, {
+          state: {
+            visitData: {
+              accountId,
+              remarkType,
+              notes: notes || undefined,
+              gpsVerified,
+            }
+          }
+        });
+      } else {
+        // For other remarks, submit immediately
+        await createVisit({
+          accountId,
+          remarkType: remarkType as 'willing' | 'unlocated' | 'moved_out' | 'refused',
+          notes: notes || undefined,
+          gpsVerified,
+        });
+        navigate('/fo/success', { state: { remarkType } });
+      }
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to save visit');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -269,16 +303,21 @@ export function VisitScreen() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
+        {submitError && (
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-700">{submitError}</p>
+          </div>
+        )}
         <button
           onClick={handleSubmit}
-          disabled={!isFormValid}
+          disabled={!isFormValid || submitting}
           className={`w-full py-4 rounded-xl font-semibold transition-colors ${
-            isFormValid
+            isFormValid && !submitting
               ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
-          {remarkType === 'willing' ? 'Continue to PTP Entry' : 'Submit Visit Report'}
+          {submitting ? 'Submitting...' : (remarkType === 'willing' ? 'Continue to PTP Entry' : 'Submit Visit Report')}
         </button>
       </div>
     </div>
