@@ -1,12 +1,18 @@
-import { Outlet, Link, useLocation } from "react-router";
+import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import { LayoutDashboard, Users, FileText, Calendar, Menu, X } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "../auth";
+import { useAuth } from "../../auth/auth";
 
 export function RootLayout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate();
   const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   const navItems = [
     { path: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -73,7 +79,7 @@ export function RootLayout() {
 
           <div className="p-4 border-t border-gray-200">
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className="w-full px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Logout

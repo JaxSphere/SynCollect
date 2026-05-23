@@ -12,7 +12,17 @@ type Account = {
   lastContact: string;
 };
 
-const accounts: Account[] = [];
+const accounts: Account[] = [
+  {
+    id: "ACC001",
+    debtorName: "Juan Dela Cruz",
+    address: "Brgy. Bolilao, Mandurriao, Iloilo City",
+    balance: "PHP 25,000",
+    status: "active",
+    officer: "Field Officer 1",
+    lastContact: "2026-05-05",
+  },
+];
 
 const statusColors = {
   active: "bg-blue-100 text-blue-800",

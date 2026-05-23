@@ -1,0 +1,32 @@
+import type { UserRole } from "../../auth/types";
+
+export type ApiUser = {
+  id: string;
+  username: string;
+  role: UserRole;
+  fullName: string | null;
+};
+
+export type ApiHistoryEntry = {
+  date: string;
+  action: string;
+  amount?: number;
+  notes?: string;
+};
+
+export type ApiAccount = {
+  id: string;
+  debtorName: string;
+  debtorPhone: string | null;
+  debtorAddress: string | null;
+  balance: number;
+  lastPayment: string | null;
+  status: string;
+  assignedOfficerId: string | null;
+  history: ApiHistoryEntry[];
+};
+
+export type LoginResponse = {
+  token: string;
+  user: ApiUser;
+};
