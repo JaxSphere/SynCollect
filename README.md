@@ -26,10 +26,11 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dcms_local?schema=pu
 
 Then run:
 
-_For docker_.
-docker compose up -d
+_For docker_: 
 
-_From the root folder_
+- docker compose up -d
+
+_From the root folder_: 
 - `cd server`
 - `npm install`
 - `npm run db:generate`
