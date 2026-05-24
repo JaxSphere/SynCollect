@@ -25,14 +25,16 @@ accountsRouter.get("/", async (req, res) => {
 
 accountsRouter.get("/:id", async (req, res) => {
   const user = req.user!;
-  const accountId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const rawAccountId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
-  if (!accountId) {
+  if (!rawAccountId?.trim()) {
     return res.status(400).json({ error: "Account ID is required." });
   }
 
+  const where = /^[0-9]+$/.test(rawAccountId) ? { accountNumber: Number(rawAccountId) } : { id: rawAccountId };
+
   const account = await prisma.account.findUnique({
-    where: { id: accountId },
+    where: where as any,
     include: { history: true, assignedOfficer: true },
   });
 
@@ -51,8 +53,7 @@ accountsRouter.get("/:id", async (req, res) => {
 });
 
 accountsRouter.post("/", requireRole(UserRole.manager, UserRole.admin), async (req, res) => {
-  const { id, debtorName, debtorPhone, debtorAddress, balance, assignedOfficerId } = req.body as {
-    id?: string;
+  const { debtorName, debtorPhone, debtorAddress, balance, assignedOfficerId } = req.body as {
     debtorName?: string;
     debtorPhone?: string;
     debtorAddress?: string;
@@ -60,18 +61,12 @@ accountsRouter.post("/", requireRole(UserRole.manager, UserRole.admin), async (r
     assignedOfficerId?: string;
   };
 
-  if (!id?.trim() || !debtorName?.trim()) {
-    return res.status(400).json({ error: "Account ID and debtor name are required." });
-  }
-
-  const existing = await prisma.account.findUnique({ where: { id: id.trim() } });
-  if (existing) {
-    return res.status(409).json({ error: "Account ID already exists." });
+  if (!debtorName?.trim()) {
+    return res.status(400).json({ error: "Debtor name is required." });
   }
 
   const account = await prisma.account.create({
     data: {
-      id: id.trim(),
       debtorName: debtorName.trim(),
       debtorPhone: debtorPhone?.trim() || null,
       debtorAddress: debtorAddress?.trim() || null,
@@ -111,14 +106,16 @@ accountsRouter.put("/:id", requireRole(UserRole.manager, UserRole.admin), async 
     return res.status(400).json({ error: "No fields to update." });
   }
 
-  const accountId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  if (!accountId) {
+  const rawAccountId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!rawAccountId?.trim()) {
     return res.status(400).json({ error: "Account ID is required." });
   }
 
+  const where = /^[0-9]+$/.test(rawAccountId) ? { accountNumber: Number(rawAccountId) } : { id: rawAccountId };
+
   try {
     const account = await prisma.account.update({
-      where: { id: accountId },
+      where: where as any,
       data,
       include: { history: true, assignedOfficer: true },
     });
@@ -129,13 +126,15 @@ accountsRouter.put("/:id", requireRole(UserRole.manager, UserRole.admin), async 
 });
 
 accountsRouter.delete("/:id", requireRole(UserRole.manager, UserRole.admin), async (req, res) => {
-  const accountId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  if (!accountId) {
+  const rawAccountId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!rawAccountId?.trim()) {
     return res.status(400).json({ error: "Account ID is required." });
   }
 
+  const where = /^[0-9]+$/.test(rawAccountId) ? { accountNumber: Number(rawAccountId) } : { id: rawAccountId };
+
   try {
-    await prisma.account.delete({ where: { id: accountId } });
+    await prisma.account.delete({ where: where as any });
     return res.status(204).send();
   } catch {
     return res.status(404).json({ error: "Account not found." });

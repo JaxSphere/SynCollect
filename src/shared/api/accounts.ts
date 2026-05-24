@@ -2,7 +2,6 @@ import { apiFetch } from "./client";
 import type { ApiAccount } from "./types";
 
 export type CreateAccountRequest = {
-  id: string;
   debtorName: string;
   debtorPhone?: string;
   debtorAddress?: string;
@@ -22,8 +21,16 @@ export function fetchAccounts() {
   return apiFetch<ApiAccount[]>("/api/accounts");
 }
 
-export function fetchAccount(id: string) {
-  return apiFetch<ApiAccount>(`/api/accounts/${id}`);
+function requireAccountId(id: string | number) {
+  const accountId = String(id).trim();
+  if (!accountId) {
+    throw new Error("Account ID is required.");
+  }
+  return encodeURIComponent(accountId);
+}
+
+export function fetchAccount(id: string | number) {
+  return apiFetch<ApiAccount>(`/api/accounts/${requireAccountId(id)}`);
 }
 
 export function createAccount(payload: CreateAccountRequest) {
@@ -33,15 +40,15 @@ export function createAccount(payload: CreateAccountRequest) {
   });
 }
 
-export function updateAccount(id: string, payload: UpdateAccountRequest) {
-  return apiFetch<ApiAccount>(`/api/accounts/${id}`, {
+export function updateAccount(id: string | number, payload: UpdateAccountRequest) {
+  return apiFetch<ApiAccount>(`/api/accounts/${requireAccountId(id)}`, {
     method: "PUT",
     body: JSON.stringify(payload),
   });
 }
 
-export function deleteAccount(id: string) {
-  return apiFetch<void>(`/api/accounts/${id}`, {
+export function deleteAccount(id: string | number) {
+  return apiFetch<void>(`/api/accounts/${requireAccountId(id)}`, {
     method: "DELETE",
   });
 }

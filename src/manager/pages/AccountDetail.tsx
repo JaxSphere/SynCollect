@@ -125,7 +125,7 @@ export function AccountDetail() {
         </button>
         <div className="flex-1">
           <h2 className="text-3xl font-bold text-gray-900">{account.debtorName}</h2>
-          <p className="text-gray-500 mt-1">Account #{account.id}</p>
+          <p className="text-gray-500 mt-1">Account #{account.accountNumber ?? account.id}</p>
         </div>
         <div className="flex gap-2">
           <button

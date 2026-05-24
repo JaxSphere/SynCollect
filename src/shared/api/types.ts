@@ -30,6 +30,7 @@ export type ApiHistoryEntry = {
 
 export type ApiAccount = {
   id: string;
+  accountNumber: number;
   debtorName: string;
   debtorPhone: string | null;
   debtorAddress: string | null;

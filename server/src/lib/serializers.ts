@@ -4,6 +4,7 @@ type AccountWithHistory = Account & { history: AccountHistory[]; assignedOfficer
 
 export function serializeAccount(account: AccountWithHistory) {
   return {
+    accountNumber: account.accountNumber,
     id: account.id,
     debtorName: account.debtorName,
     debtorPhone: account.debtorPhone,

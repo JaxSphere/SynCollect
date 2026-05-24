@@ -48,7 +48,8 @@ model User {
 }
 
 model Account {
-  id                String        @id
+  id                String        @id @default(uuid())
+  accountNumber     Int           @unique @default(autoincrement()) @map("account_number")
   debtorName        String        @map("debtor_name")
   debtorPhone       String?       @map("debtor_phone")
   debtorAddress     String?       @map("debtor_address")

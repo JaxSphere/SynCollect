@@ -25,7 +25,8 @@ usersRouter.get(
   "/:id",
   requireRole(UserRole.admin, UserRole.manager),
   async (req, res) => {
-    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    const userId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return res.status(404).json({ error: "User not found." });
     }
@@ -88,7 +89,8 @@ usersRouter.put("/:id", requireRole(UserRole.admin), async (req, res) => {
     const existing = await prisma.user.findUnique({
       where: { username: username.trim() },
     });
-    if (existing && existing.id !== req.params.id) {
+    const userId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (existing && existing.id !== userId) {
       return res.status(409).json({ error: "Username already exists." });
     }
   }
@@ -106,9 +108,11 @@ usersRouter.put("/:id", requireRole(UserRole.admin), async (req, res) => {
     data.passwordHash = await bcrypt.hash(password, 10);
   }
 
+  const userId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
   try {
     const user = await prisma.user.update({
-      where: { id: req.params.id },
+      where: { id: userId },
       data,
     });
     return res.json(serializeUser(user));
@@ -124,8 +128,9 @@ usersRouter.delete("/:id", requireRole(UserRole.admin), async (req, res) => {
       .json({ error: "You cannot delete your own account." });
   }
 
+  const userId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   try {
-    await prisma.user.delete({ where: { id: req.params.id } });
+    await prisma.user.delete({ where: { id: userId } });
     return res.status(204).send();
   } catch {
     return res.status(404).json({ error: "User not found." });

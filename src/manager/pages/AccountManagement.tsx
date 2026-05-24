@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Search, Filter, Upload, ChevronDown, Eye, Pencil, Trash2, Plus } from "lucide-react";
 import { fetchAccounts, createAccount, updateAccount, deleteAccount } from "../../shared/api/accounts";
-import type { ApiAccount } from "../../shared/api/types";
+import { fetchUsers } from "../../shared/api/users";
+import type { ApiAccount, ApiUser } from "../../shared/api/types";
 import { Link } from "react-router";
 
 const statusColors: Record<string, string> = {
@@ -16,12 +17,11 @@ const statusColors: Record<string, string> = {
 };
 
 const defaultForm = {
-  id: "",
   debtorName: "",
   debtorPhone: "",
   debtorAddress: "",
   balance: 0,
-  assignedOfficer: "",
+  assignedOfficerId: "",
 };
 
 function getOfficerInitials(name: string): string {
@@ -48,18 +48,25 @@ function getOfficerColors(name: string): string[] {
   return officerAvatarColors[hash % officerAvatarColors.length];
 }
 
+function getAccountActionId(account: ApiAccount): string {
+  return String(account.id || account.accountNumber || "").trim();
+}
+
 export function AccountManagement() {
   const [accounts, setAccounts] = useState<ApiAccount[]>([]);
+  const [officers, setOfficers] = useState<ApiUser[]>([]);
   const [loading, setLoading] = useState(false);
+  const [officersLoading, setOfficersLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
+  const [editingAccountNumber, setEditingAccountNumber] = useState<number | null>(null);
   const [form, setForm] = useState(defaultForm);
 
   const isFormValid = useMemo(() => {
-    return form.id.trim().length > 0 && form.debtorName.trim().length > 0;
+    return form.debtorName.trim().length > 0;
   }, [form]);
 
   const loadAccounts = async () => {
@@ -75,14 +82,28 @@ export function AccountManagement() {
     }
   };
 
+  const loadOfficers = async () => {
+    setOfficersLoading(true);
+    try {
+      const users = await fetchUsers();
+      setOfficers(users.filter((user) => user.role === "fieldOfficer"));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setOfficersLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadAccounts();
+    loadOfficers();
   }, []);
 
   const filteredAccounts = accounts.filter((account) => {
+    const idMatch = String(account.accountNumber ?? account.id).toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSearch =
       account.debtorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      account.id.toLowerCase().includes(searchTerm.toLowerCase());
+      idMatch;
     const matchesStatus = statusFilter === "all" || account.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -90,18 +111,19 @@ export function AccountManagement() {
   const resetForm = () => {
     setForm(defaultForm);
     setEditingAccountId(null);
+    setEditingAccountNumber(null);
     setShowForm(false);
   };
 
   const handleEdit = (account: ApiAccount) => {
-    setEditingAccountId(account.id);
+    setEditingAccountId(getAccountActionId(account));
+    setEditingAccountNumber(account.accountNumber ?? null);
     setForm({
-      id: account.id,
       debtorName: account.debtorName,
       debtorPhone: account.debtorPhone ?? "",
       debtorAddress: account.debtorAddress ?? "",
       balance: account.balance,
-      assignedOfficer: account.assignedOfficerId ?? "",
+      assignedOfficerId: account.assignedOfficerId ?? "",
     });
     setShowForm(true);
   };
@@ -109,7 +131,7 @@ export function AccountManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) {
-      setError("Account ID and debtor name are required.");
+      setError("Debtor name is required.");
       return;
     }
 
@@ -123,16 +145,15 @@ export function AccountManagement() {
           debtorPhone: form.debtorPhone.trim() || undefined,
           debtorAddress: form.debtorAddress.trim() || undefined,
           balance: form.balance,
-          assignedOfficerId: form.assignedOfficer.trim() || undefined,
+          assignedOfficerId: form.assignedOfficerId.trim() || undefined,
         });
       } else {
         await createAccount({
-          id: form.id.trim(),
           debtorName: form.debtorName.trim(),
           debtorPhone: form.debtorPhone.trim() || undefined,
           debtorAddress: form.debtorAddress.trim() || undefined,
           balance: form.balance,
-          assignedOfficerId: form.assignedOfficer.trim() || undefined,
+          assignedOfficerId: form.assignedOfficerId.trim() || undefined,
         });
       }
       await loadAccounts();
@@ -145,6 +166,11 @@ export function AccountManagement() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!id.trim()) {
+      setError("Account ID is required.");
+      return;
+    }
+
     if (!window.confirm("Delete this account? This action cannot be undone.")) {
       return;
     }
@@ -284,7 +310,7 @@ export function AccountManagement() {
               {filteredAccounts.map((account) => (
                 <tr key={account.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {account.id}
+                    {account.accountNumber ?? account.id}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {account.debtorName}
@@ -324,7 +350,7 @@ export function AccountManagement() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2 flex">
                     <Link
-                      to={`/accounts/${account.id}`}
+                      to={`/accounts/${getAccountActionId(account)}`}
                       className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
                     >
                       <Eye className="w-4 h-4" />
@@ -338,7 +364,7 @@ export function AccountManagement() {
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(account.id)}
+                      onClick={() => handleDelete(getAccountActionId(account))}
                       className="inline-flex items-center gap-1 text-red-600 hover:text-red-800"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -364,16 +390,17 @@ export function AccountManagement() {
               {editingAccountId ? "Edit Account" : "Create New Account"}
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Account ID *</label>
-                <input
-                  type="text"
-                  value={form.id}
-                  onChange={(e) => setForm((prev) => ({ ...prev, id: e.target.value }))}
-                  disabled={!!editingAccountId}
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500"
-                />
-              </div>
+              {editingAccountId ? (
+                <div className="rounded-lg border border-gray-200 bg-slate-50 p-3 text-sm text-gray-700">
+                  <p className="font-medium text-gray-900">Account # {editingAccountNumber ?? editingAccountId}</p>
+                  <p className="mt-1 text-gray-500">Account numbers are generated automatically and cannot be changed.</p>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-gray-200 bg-slate-50 p-3 text-sm text-gray-700">
+                  <p className="font-medium text-gray-900">Account ID is automatic</p>
+                  <p className="mt-1 text-gray-500">A new account number will be generated when you save.</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700">Debtor Name *</label>
                 <input
@@ -412,13 +439,24 @@ export function AccountManagement() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Assigned Officer</label>
-                <input
-                  type="text"
-                  value={form.assignedOfficer}
-                  onChange={(e) => setForm((prev) => ({ ...prev, assignedOfficer: e.target.value }))}
-                  placeholder="e.g. Jaspher Samalburo"
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                />
+                <select
+                  value={form.assignedOfficerId}
+                  onChange={(e) => setForm((prev) => ({ ...prev, assignedOfficerId: e.target.value }))}
+                  className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
+                >
+                  <option value="">Unassigned</option>
+                  {officers.map((officer) => (
+                    <option key={officer.id} value={officer.id}>
+                      {officer.fullName || officer.username}
+                    </option>
+                  ))}
+                </select>
+                {officersLoading && (
+                  <p className="mt-2 text-sm text-gray-500">Loading officers...</p>
+                )}
+                {!officersLoading && officers.length === 0 && (
+                  <p className="mt-2 text-sm text-gray-500">No field officers available yet.</p>
+                )}
               </div>
               <div className="flex gap-2 pt-4">
                 <button

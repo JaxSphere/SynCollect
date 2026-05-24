@@ -40,7 +40,8 @@ visitsRouter.post("/", async (req, res) => {
     gpsVerified?: boolean;
   };
 
-  if (!accountId || !remarkType) {
+  const resolvedAccountId = accountId?.trim();
+  if (!resolvedAccountId || !remarkType) {
     return res.status(400).json({ error: "accountId and remarkType are required." });
   }
 
@@ -48,7 +49,10 @@ visitsRouter.post("/", async (req, res) => {
     return res.status(400).json({ error: "Invalid remarkType." });
   }
 
-  const account = await prisma.account.findUnique({ where: { id: accountId } });
+  const account = /^[0-9]+$/.test(resolvedAccountId)
+    ? await prisma.account.findUnique({ where: { accountNumber: Number(resolvedAccountId) } })
+    : await prisma.account.findUnique({ where: { id: resolvedAccountId } });
+
   if (!account) {
     return res.status(404).json({ error: "Account not found." });
   }
@@ -60,7 +64,7 @@ visitsRouter.post("/", async (req, res) => {
   const visit = await prisma.$transaction(async (tx) => {
     const created = await tx.visit.create({
       data: {
-        accountId,
+        accountId: account.id,
         officerId: user.userId,
         remarkType,
         ptpAmount: ptpAmount ?? undefined,
@@ -72,7 +76,7 @@ visitsRouter.post("/", async (req, res) => {
 
     const nextStatus = mapRemarkToStatus(remarkType);
     await tx.account.update({
-      where: { id: accountId },
+      where: { id: account.id },
       data: { status: nextStatus },
     });
 
@@ -83,7 +87,7 @@ visitsRouter.post("/", async (req, res) => {
 
     await tx.accountHistory.create({
       data: {
-        accountId,
+        accountId: account.id,
         action: actionLabel,
         amount: ptpAmount ?? undefined,
         notes,

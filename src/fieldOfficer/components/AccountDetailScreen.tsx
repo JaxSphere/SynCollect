@@ -30,7 +30,7 @@ export function AccountDetailScreen() {
           </button>
           <div className="flex-1">
             <h1 className="text-xl font-bold">Account Details</h1>
-            <p className="text-blue-100 text-sm">{account.id}</p>
+            <p className="text-blue-100 text-sm">{account.accountNumber ?? account.id}</p>
           </div>
         </div>
       </div>
