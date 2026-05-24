@@ -38,3 +38,14 @@ _From the root folder_:
 - `npm run db:seed`
 - `npm run dev`
 
+  ## If These errors occur do the the following:
+Error: Prisma schema validation - (get-config wasm)
+Error code: P1012
+
+- `cd /d "C:\Users\Lenovo\Documents\Debt Collection Management System\server"`
+- `rmdir /s /q node_modules`
+- `del package-lock.json 2>nul`
+- `npm install prisma@6.19.3 @prisma/client@6.19.3`
+- `npx prisma generate`
+
+
