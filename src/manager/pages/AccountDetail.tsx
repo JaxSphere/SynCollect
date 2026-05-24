@@ -1,8 +1,10 @@
-import { useParams, Link, useNavigate } from "react-router";
-import { ArrowLeft, Phone, MapPin, DollarSign, Calendar, FileText } from "lucide-react";
+import { useParams, useNavigate } from "react-router";
+import { ArrowLeft, Phone, MapPin, DollarSign, Calendar, FileText, UserPlus, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { fetchAccount } from "../../shared/api/accounts";
-import type { ApiAccount, ApiHistoryEntry } from "../../shared/api/types";
+import { fetchAccount, updateAccount } from "../../shared/api/accounts";
+import { fetchUsers } from "../../shared/api/users";
+import type { ApiAccount } from "../../shared/api/types";
+import type { ApiUser } from "../../shared/api/types";
 
 const statusColors: Record<string, string> = {
   active: "bg-blue-100 text-blue-800",
@@ -22,6 +24,15 @@ export function AccountDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Assign Officer modal state
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [officers, setOfficers] = useState<ApiUser[]>([]);
+  const [officersLoading, setOfficersLoading] = useState(false);
+  const [selectedOfficerId, setSelectedOfficerId] = useState<string>("");
+  const [assigning, setAssigning] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [assignSuccess, setAssignSuccess] = useState(false);
+
   useEffect(() => {
     if (!id) {
       setError("Account ID not found");
@@ -30,12 +41,57 @@ export function AccountDetail() {
     }
 
     fetchAccount(id)
-      .then(setAccount)
+      .then((data) => {
+        setAccount(data);
+        setSelectedOfficerId(data.assignedOfficerId ?? "");
+      })
       .catch((err) => {
         setError(err instanceof Error ? err.message : "Failed to load account");
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  const openAssignModal = async () => {
+    setAssignError(null);
+    setAssignSuccess(false);
+    setShowAssignModal(true);
+    setOfficersLoading(true);
+    try {
+      const users = await fetchUsers();
+      setOfficers(users.filter((u) => u.role === "fieldOfficer"));
+    } catch (err) {
+      setAssignError(err instanceof Error ? err.message : "Failed to load officers.");
+    } finally {
+      setOfficersLoading(false);
+    }
+  };
+
+  const handleAssign = async () => {
+    if (!id) return;
+    setAssigning(true);
+    setAssignError(null);
+    try {
+      const updated = await updateAccount(id, {
+        assignedOfficerId: selectedOfficerId || undefined,
+      });
+      setAccount(updated);
+      setAssignSuccess(true);
+      setTimeout(() => {
+        setShowAssignModal(false);
+        setAssignSuccess(false);
+      }, 1200);
+    } catch (err) {
+      setAssignError(err instanceof Error ? err.message : "Failed to assign officer.");
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const assignedOfficerName =
+    account?.assignedOfficerName ||
+    officers.find((o) => o.id === account?.assignedOfficerId)?.fullName ||
+    officers.find((o) => o.id === account?.assignedOfficerId)?.username ||
+    null;
 
   if (loading) {
     return <div className="p-6 text-gray-600">Loading account details...</div>;
@@ -55,7 +111,6 @@ export function AccountDetail() {
     );
   }
 
-  // Extract PTP records from history
   const ptpRecords = account.history.filter((h) => h.action.includes("PTP"));
 
   return (
@@ -73,6 +128,13 @@ export function AccountDetail() {
           <p className="text-gray-500 mt-1">Account #{account.id}</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={openAssignModal}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <UserPlus className="w-4 h-4" />
+            Assign Officer
+          </button>
           <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
             <FileText className="w-4 h-4 inline mr-2" />
             Generate Letter
@@ -135,6 +197,21 @@ export function AccountDetail() {
                 {account.status.toUpperCase()}
               </span>
             </div>
+            <div className="pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-500 mb-1">Assigned Officer</p>
+              {account.assignedOfficerId ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-xs">
+                    {(assignedOfficerName ?? account.assignedOfficerId).charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">
+                    {assignedOfficerName ?? account.assignedOfficerId}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 italic">No officer assigned</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -193,15 +270,9 @@ export function AccountDetail() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Notes
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -218,6 +289,121 @@ export function AccountDetail() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Officer Modal */}
+      {showAssignModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Assign Field Officer</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Account #{account.id} — {account.debtorName}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAssignModal(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {assignError && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {assignError}
+              </div>
+            )}
+
+            {assignSuccess && (
+              <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                Officer assigned successfully!
+              </div>
+            )}
+
+            {officersLoading ? (
+              <div className="py-8 text-center text-sm text-gray-500">Loading officers…</div>
+            ) : officers.length === 0 ? (
+              <div className="py-8 text-center text-sm text-gray-500">
+                No field officers found. Create one in User Management first.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto mb-5">
+                {/* Unassign option */}
+                <label
+                  className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                    selectedOfficerId === ""
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="officer"
+                    value=""
+                    checked={selectedOfficerId === ""}
+                    onChange={() => setSelectedOfficerId("")}
+                    className="accent-blue-600"
+                  />
+                  <span className="text-sm text-gray-500 italic">— No officer (unassign)</span>
+                </label>
+
+                {officers.map((officer) => (
+                  <label
+                    key={officer.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                      selectedOfficerId === officer.id
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="officer"
+                      value={officer.id}
+                      checked={selectedOfficerId === officer.id}
+                      onChange={() => setSelectedOfficerId(officer.id)}
+                      className="accent-blue-600"
+                    />
+                    <div className="flex items-center gap-2 flex-1">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
+                        {(officer.fullName ?? officer.username).charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {officer.fullName ?? officer.username}
+                        </p>
+                        <p className="text-xs text-gray-500">@{officer.username}</p>
+                      </div>
+                    </div>
+                    {account.assignedOfficerId === officer.id && (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                        Current
+                      </span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleAssign}
+                disabled={assigning || officersLoading || officers.length === 0}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors font-medium"
+              >
+                {assigning ? "Saving…" : "Confirm Assignment"}
+              </button>
+              <button
+                onClick={() => setShowAssignModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

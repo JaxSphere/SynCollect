@@ -21,7 +21,32 @@ const defaultForm = {
   debtorPhone: "",
   debtorAddress: "",
   balance: 0,
+  assignedOfficer: "",
 };
+
+function getOfficerInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+const officerAvatarColors: string[][] = [
+  ["bg-blue-100", "text-blue-700"],
+  ["bg-green-100", "text-green-700"],
+  ["bg-purple-100", "text-purple-700"],
+  ["bg-amber-100", "text-amber-700"],
+  ["bg-pink-100", "text-pink-700"],
+  ["bg-teal-100", "text-teal-700"],
+];
+
+function getOfficerColors(name: string): string[] {
+  let hash = 0;
+  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffff;
+  return officerAvatarColors[hash % officerAvatarColors.length];
+}
 
 export function AccountManagement() {
   const [accounts, setAccounts] = useState<ApiAccount[]>([]);
@@ -76,6 +101,7 @@ export function AccountManagement() {
       debtorPhone: account.debtorPhone ?? "",
       debtorAddress: account.debtorAddress ?? "",
       balance: account.balance,
+      assignedOfficer: account.assignedOfficerId ?? "",
     });
     setShowForm(true);
   };
@@ -97,6 +123,7 @@ export function AccountManagement() {
           debtorPhone: form.debtorPhone.trim() || undefined,
           debtorAddress: form.debtorAddress.trim() || undefined,
           balance: form.balance,
+          assignedOfficerId: form.assignedOfficer.trim() || undefined,
         });
       } else {
         await createAccount({
@@ -105,6 +132,7 @@ export function AccountManagement() {
           debtorPhone: form.debtorPhone.trim() || undefined,
           debtorAddress: form.debtorAddress.trim() || undefined,
           balance: form.balance,
+          assignedOfficerId: form.assignedOfficer.trim() || undefined,
         });
       }
       await loadAccounts();
@@ -236,13 +264,16 @@ export function AccountManagement() {
                   Debtor Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Phone
+                  Address
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Balance
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Assigned Officer
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -258,8 +289,8 @@ export function AccountManagement() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {account.debtorName}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {account.debtorPhone || "—"}
+                  <td className="px-6 py-4 text-sm text-gray-500 max-w-[180px] truncate">
+                    {account.debtorAddress || "—"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                     PHP {account.balance.toLocaleString()}
@@ -272,6 +303,24 @@ export function AccountManagement() {
                     >
                       {account.status.toUpperCase()}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {account.assignedOfficerName ? (
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${
+                            getOfficerColors(account.assignedOfficerName).join(" ")
+                          }`}
+                        >
+                          {getOfficerInitials(account.assignedOfficerName)}
+                        </div>
+                        <span className="text-sm text-gray-900 truncate max-w-[120px]">
+                          {account.assignedOfficerName}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2 flex">
                     <Link
@@ -358,6 +407,16 @@ export function AccountManagement() {
                   type="number"
                   value={form.balance}
                   onChange={(e) => setForm((prev) => ({ ...prev, balance: Number(e.target.value) }))}
+                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Assigned Officer</label>
+                <input
+                  type="text"
+                  value={form.assignedOfficer}
+                  onChange={(e) => setForm((prev) => ({ ...prev, assignedOfficer: e.target.value }))}
+                  placeholder="e.g. Jaspher Samalburo"
                   className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
                 />
               </div>

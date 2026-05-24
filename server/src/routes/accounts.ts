@@ -16,7 +16,7 @@ accountsRouter.get("/", async (req, res) => {
       user.role === UserRole.fieldOfficer
         ? { assignedOfficerId: user.userId }
         : undefined,
-    include: { history: true },
+    include: { history: true, assignedOfficer: true },
     orderBy: { debtorName: "asc" },
   });
 
@@ -25,9 +25,15 @@ accountsRouter.get("/", async (req, res) => {
 
 accountsRouter.get("/:id", async (req, res) => {
   const user = req.user!;
+  const accountId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+  if (!accountId) {
+    return res.status(400).json({ error: "Account ID is required." });
+  }
+
   const account = await prisma.account.findUnique({
-    where: { id: req.params.id },
-    include: { history: true },
+    where: { id: accountId },
+    include: { history: true, assignedOfficer: true },
   });
 
   if (!account) {
@@ -72,7 +78,7 @@ accountsRouter.post("/", requireRole(UserRole.manager, UserRole.admin), async (r
       balance: balance ?? 0,
       assignedOfficerId: assignedOfficerId || null,
     },
-    include: { history: true },
+    include: { history: true, assignedOfficer: true },
   });
 
   return res.status(201).json(serializeAccount(account));
@@ -105,11 +111,16 @@ accountsRouter.put("/:id", requireRole(UserRole.manager, UserRole.admin), async 
     return res.status(400).json({ error: "No fields to update." });
   }
 
+  const accountId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!accountId) {
+    return res.status(400).json({ error: "Account ID is required." });
+  }
+
   try {
     const account = await prisma.account.update({
-      where: { id: req.params.id },
+      where: { id: accountId },
       data,
-      include: { history: true },
+      include: { history: true, assignedOfficer: true },
     });
     return res.json(serializeAccount(account));
   } catch {
@@ -118,8 +129,13 @@ accountsRouter.put("/:id", requireRole(UserRole.manager, UserRole.admin), async 
 });
 
 accountsRouter.delete("/:id", requireRole(UserRole.manager, UserRole.admin), async (req, res) => {
+  const accountId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!accountId) {
+    return res.status(400).json({ error: "Account ID is required." });
+  }
+
   try {
-    await prisma.account.delete({ where: { id: req.params.id } });
+    await prisma.account.delete({ where: { id: accountId } });
     return res.status(204).send();
   } catch {
     return res.status(404).json({ error: "Account not found." });

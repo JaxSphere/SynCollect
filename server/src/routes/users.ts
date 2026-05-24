@@ -7,24 +7,34 @@ import { UserRole } from "@prisma/client";
 
 export const usersRouter = Router();
 
-usersRouter.use(requireAuth, requireRole(UserRole.admin));
+usersRouter.use(requireAuth);
 
 const validRoles = [UserRole.admin, UserRole.manager, UserRole.fieldOfficer];
 
-usersRouter.get("/", async (_req, res) => {
-  const users = await prisma.user.findMany({ orderBy: { username: "asc" } });
-  return res.json(users.map(serializeUser));
-});
+// Managers and admins can read users
+usersRouter.get(
+  "/",
+  requireRole(UserRole.admin, UserRole.manager),
+  async (_req, res) => {
+    const users = await prisma.user.findMany({ orderBy: { username: "asc" } });
+    return res.json(users.map(serializeUser));
+  },
+);
 
-usersRouter.get("/:id", async (req, res) => {
-  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
-  if (!user) {
-    return res.status(404).json({ error: "User not found." });
-  }
-  return res.json(serializeUser(user));
-});
+usersRouter.get(
+  "/:id",
+  requireRole(UserRole.admin, UserRole.manager),
+  async (req, res) => {
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+    return res.json(serializeUser(user));
+  },
+);
 
-usersRouter.post("/", async (req, res) => {
+// Only admins can create, update, or delete users
+usersRouter.post("/", requireRole(UserRole.admin), async (req, res) => {
   const { username, password, role, fullName } = req.body as {
     username?: string;
     password?: string;
@@ -33,14 +43,18 @@ usersRouter.post("/", async (req, res) => {
   };
 
   if (!username?.trim() || !password || !role) {
-    return res.status(400).json({ error: "Username, password, and role are required." });
+    return res
+      .status(400)
+      .json({ error: "Username, password, and role are required." });
   }
 
   if (!validRoles.includes(role)) {
     return res.status(400).json({ error: "Invalid role." });
   }
 
-  const existing = await prisma.user.findUnique({ where: { username: username.trim() } });
+  const existing = await prisma.user.findUnique({
+    where: { username: username.trim() },
+  });
   if (existing) {
     return res.status(409).json({ error: "Username already exists." });
   }
@@ -58,7 +72,7 @@ usersRouter.post("/", async (req, res) => {
   return res.status(201).json(serializeUser(user));
 });
 
-usersRouter.put("/:id", async (req, res) => {
+usersRouter.put("/:id", requireRole(UserRole.admin), async (req, res) => {
   const { username, password, role, fullName } = req.body as {
     username?: string;
     password?: string;
@@ -71,13 +85,20 @@ usersRouter.put("/:id", async (req, res) => {
   }
 
   if (username?.trim()) {
-    const existing = await prisma.user.findUnique({ where: { username: username.trim() } });
+    const existing = await prisma.user.findUnique({
+      where: { username: username.trim() },
+    });
     if (existing && existing.id !== req.params.id) {
       return res.status(409).json({ error: "Username already exists." });
     }
   }
 
-  const data: { username?: string; passwordHash?: string; role?: UserRole; fullName?: string | null } = {};
+  const data: {
+    username?: string;
+    passwordHash?: string;
+    role?: UserRole;
+    fullName?: string | null;
+  } = {};
   if (username?.trim()) data.username = username.trim();
   if (role) data.role = role;
   if (fullName !== undefined) data.fullName = fullName?.trim() || null;
@@ -91,14 +112,16 @@ usersRouter.put("/:id", async (req, res) => {
       data,
     });
     return res.json(serializeUser(user));
-  } catch (error) {
+  } catch {
     return res.status(404).json({ error: "User not found." });
   }
 });
 
-usersRouter.delete("/:id", async (req, res) => {
+usersRouter.delete("/:id", requireRole(UserRole.admin), async (req, res) => {
   if (req.params.id === req.user?.userId) {
-    return res.status(400).json({ error: "You cannot delete your own account." });
+    return res
+      .status(400)
+      .json({ error: "You cannot delete your own account." });
   }
 
   try {

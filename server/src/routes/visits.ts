@@ -95,9 +95,13 @@ visitsRouter.post("/", async (req, res) => {
   });
 
   return res.status(201).json({
-    id: visit.id,
-    accountId: visit.accountId,
-    remarkType: visit.remarkType,
-    createdAt: visit.createdAt,
-  });
+      id: visit.id,
+      accountId: visit.accountId,
+      remarkType: visit.remarkType,
+      ptpAmount: visit.ptpAmount ?? undefined,
+      ptpDate: visit.ptpDate?.toISOString().slice(0, 10),
+      notes: visit.notes ?? undefined,
+      gpsVerified: visit.gpsVerified,
+      createdAt: visit.createdAt.toISOString(),
+    });
 });

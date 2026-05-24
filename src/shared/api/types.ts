@@ -37,6 +37,7 @@ export type ApiAccount = {
   lastPayment: string | null;
   status: string;
   assignedOfficerId: string | null;
+  assignedOfficerName?: string | null;
   history: ApiHistoryEntry[];
 };
 

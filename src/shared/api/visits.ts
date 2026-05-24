@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiFetch } from "./client";
 
 export type VisitRemarkType = 'willing' | 'unlocated' | 'moved_out' | 'refused';
 
@@ -23,10 +23,8 @@ export type VisitResponse = {
 };
 
 export async function createVisit(payload: CreateVisitRequest): Promise<VisitResponse> {
-  const response = await apiClient.post("/api/visits", payload);
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Failed to create visit" }));
-    throw new Error(error.error || "Failed to create visit");
-  }
-  return response.json();
+  return apiFetch<VisitResponse>("/api/visits", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }

@@ -1,6 +1,6 @@
 import type { Account, AccountHistory, User } from "@prisma/client";
 
-type AccountWithHistory = Account & { history: AccountHistory[] };
+type AccountWithHistory = Account & { history: AccountHistory[]; assignedOfficer?: User | null };
 
 export function serializeAccount(account: AccountWithHistory) {
   return {
@@ -12,6 +12,7 @@ export function serializeAccount(account: AccountWithHistory) {
     lastPayment: account.lastPayment?.toISOString().slice(0, 10) ?? null,
     status: account.status,
     assignedOfficerId: account.assignedOfficerId,
+    assignedOfficerName: account.assignedOfficer ? account.assignedOfficer.fullName ?? account.assignedOfficer.username : null,
     history: account.history
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .map((entry) => ({
