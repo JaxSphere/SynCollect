@@ -14,7 +14,7 @@ This is a React.js application built with Vite.
 4. Preview the production build:
    - `npm run preview`
 
-##If you want to create your own local DB
+## If you want to create your own local DB
 What you just need:
 
 1. a PostgreSQL server
@@ -38,7 +38,7 @@ _From the root folder_:
 - `npm run db:seed`
 - `npm run dev`
 
-  ## If These errors occur do the the following:
+## If These errors occur do the the following:
 Error: Prisma schema validation - (get-config wasm)
 Error code: P1012
 
