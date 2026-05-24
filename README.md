@@ -42,7 +42,7 @@ _From the root folder_:
 Error: Prisma schema validation - (get-config wasm)
 Error code: P1012
 
-- `cd /d "C:\Users\Lenovo\Documents\Debt Collection Management System\server"`
+- `cd server`
 - `rmdir /s /q node_modules`
 - `del package-lock.json 2>nul`
 - `npm install prisma@6.19.3 @prisma/client@6.19.3`
