@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router';
-import { ArrowLeft, DollarSign, Calendar, FileText } from 'lucide-react';
+import { ArrowLeft, DollarSign, Calendar, FileText, Camera, X } from 'lucide-react';
 import { useAccount } from '../hooks/useAccounts';
 import { OfflineBanner } from './OfflineBanner';
 import { createVisit } from '../../shared/api/visits';
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_FORMATS = ['image/jpeg', 'image/png'];
 
 export function PTPEntryScreen() {
   const { accountId } = useParams();
@@ -14,10 +17,33 @@ export function PTPEntryScreen() {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [ptpPhoto, setPtpPhoto] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
   const visitData = (location.state as any)?.visitData;
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ALLOWED_FORMATS.includes(file.type)) {
+      setPhotoError('Only JPEG and PNG images are allowed.');
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setPhotoError('Image must be smaller than 5 MB.');
+      return;
+    }
+    setPhotoError(null);
+    const reader = new FileReader();
+    reader.onloadend = () => setPtpPhoto(reader.result as string);
+    reader.readAsDataURL(file);
+    // reset so same file can be re-selected
+    e.target.value = '';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,12 +61,17 @@ export function PTPEntryScreen() {
     setSubmitError(null);
 
     try {
+      const existingAdditional: string[] = visitData?.additionalPhotos ?? [];
+      const allAdditional = ptpPhoto
+        ? [...existingAdditional, ptpPhoto]
+        : existingAdditional;
+
       await createVisit({
         accountId,
         remarkType: visitData?.remarkType || 'willing',
         housePhoto: visitData?.housePhoto,
         clientPhoto: visitData?.clientPhoto,
-        additionalPhotos: visitData?.additionalPhotos,
+        additionalPhotos: allAdditional.length > 0 ? allAdditional : undefined,
         ptpAmount: parseFloat(amount),
         ptpDate: date,
         notes: visitData?.notes || notes || undefined,
@@ -158,6 +189,63 @@ export function PTPEntryScreen() {
                 placeholder="Payment method, conditions, or other relevant information..."
               />
             </div>
+          </div>
+
+          {/* Payment Proof Photo */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+            <h3 className="font-semibold text-gray-900 mb-1">Payment Proof Photo</h3>
+            <p className="text-xs text-gray-500 mb-4">Optional — attach a photo of signed agreement or payment receipt.</p>
+
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
+
+            {ptpPhoto ? (
+              <div className="relative">
+                <img
+                  src={ptpPhoto}
+                  alt="Payment proof"
+                  className="w-full h-52 object-cover rounded-lg"
+                />
+                <div className="absolute top-2 right-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="bg-blue-600 text-white p-2 rounded-lg shadow-lg hover:bg-blue-700 transition-colors"
+                    title="Change photo"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPtpPhoto(null)}
+                    className="bg-red-600 text-white p-2 rounded-lg shadow-lg hover:bg-red-700 transition-colors"
+                    title="Remove photo"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2 text-center">Tap the camera icon to change, or × to remove.</p>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center gap-2 hover:border-green-500 hover:bg-green-50 transition-colors"
+              >
+                <Camera className="w-8 h-8 text-gray-400" />
+                <span className="text-sm font-medium text-gray-600">Upload Payment Proof</span>
+                <span className="text-xs text-gray-400">JPEG or PNG · max 5 MB</span>
+              </button>
+            )}
+
+            {photoError && (
+              <p className="mt-2 text-xs text-red-600">{photoError}</p>
+            )}
           </div>
         </form>
       </div>

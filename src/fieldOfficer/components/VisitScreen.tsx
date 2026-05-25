@@ -106,13 +106,13 @@ export function VisitScreen() {
   const isFollowUpRemark = followUpRemarks.includes(remarkType);
 
   const handleSubmit = async () => {
-    if (!housePhoto || !clientPhoto) {
-      setSubmitError('At least one photo is required to complete this visit. Please take a photo and try again.');
+    if (!remarkType) {
+      setSubmitError('Please select a remark before submitting the visit record.');
       return;
     }
 
-    if (!remarkType) {
-      setSubmitError('Please select a visit remark to continue.');
+    if (!housePhoto || !clientPhoto) {
+      setSubmitError('At least one photo is required to complete this visit. Please take a photo and try again.');
       return;
     }
 

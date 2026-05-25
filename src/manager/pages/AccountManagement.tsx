@@ -81,9 +81,21 @@ export function AccountManagement() {
   const [editingAccountNumber, setEditingAccountNumber] = useState<number | null>(null);
   const [form, setForm] = useState(defaultForm);
 
+  const isDuplicateAccountNumber = useMemo(() => {
+    const num = Number(form.accountNumber);
+    if (!form.accountNumber.trim() || isNaN(num)) return false;
+    return accounts.some(
+      (a) => a.accountNumber === num && a.accountNumber !== editingAccountNumber
+    );
+  }, [form.accountNumber, accounts, editingAccountNumber]);
+
   const isFormValid = useMemo(() => {
-    return form.debtorName.trim().length > 0 && form.accountNumber.trim().length > 0;
-  }, [form]);
+    return (
+      form.debtorName.trim().length > 0 &&
+      form.accountNumber.trim().length > 0 &&
+      !isDuplicateAccountNumber
+    );
+  }, [form, isDuplicateAccountNumber]);
 
   const loadAccounts = async () => {
     setLoading(true);
@@ -555,8 +567,18 @@ export function AccountManagement() {
                       value={form.accountNumber}
                       onChange={(e) => setForm((prev) => ({ ...prev, accountNumber: e.target.value }))}
                       placeholder="e.g. 100001"
-                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent ${
+                        isDuplicateAccountNumber
+                          ? "border-red-400 focus:ring-red-500 bg-red-50"
+                          : "border-gray-300 focus:ring-blue-500"
+                      }`}
                     />
+                    {isDuplicateAccountNumber && (
+                      <p className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
+                        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                        Account number already exists. Duplicate entries cannot be saved.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
