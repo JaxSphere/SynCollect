@@ -37,14 +37,17 @@ export function PTPEntryScreen() {
     try {
       await createVisit({
         accountId,
-        remarkType: 'willing',
+        remarkType: visitData?.remarkType || 'willing',
+        housePhoto: visitData?.housePhoto,
+        clientPhoto: visitData?.clientPhoto,
+        additionalPhotos: visitData?.additionalPhotos,
         ptpAmount: parseFloat(amount),
         ptpDate: date,
         notes: visitData?.notes || notes || undefined,
         gpsVerified: visitData?.gpsVerified || false,
       });
 
-      navigate('/fo/success', { state: { remarkType: 'willing', ptpAmount: amount, ptpDate: date } });
+      navigate('/fo/success', { state: { remarkType: visitData?.remarkType || 'willing', ptpAmount: amount, ptpDate: date } });
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to save PTP');
     } finally {

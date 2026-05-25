@@ -26,7 +26,15 @@ enum AccountStatus {
 
 enum VisitRemarkType {
   willing
+  responsed
   unlocated
+  transfer_residence
+  full_paid
+  refuse_to_receive_and_sign
+  for_follow_up
+  dont_have_capacity_to_pay
+  onhold_account
+  difficult_to_reach_out
   moved_out
   refused
 }
@@ -49,12 +57,20 @@ model User {
 
 model Account {
   id                String        @id @default(uuid())
-  accountNumber     Int           @unique @default(autoincrement()) @map("account_number")
+  accountNumber     Int           @unique @map("account_number")
   debtorName        String        @map("debtor_name")
   debtorPhone       String?       @map("debtor_phone")
   debtorAddress     String?       @map("debtor_address")
+  yearAccount       Int?          @map("year_account")
+  guarantorName     String?       @map("guarantor_name")
+  relationship      String?
+  guarantorContacts String?       @map("guarantor_contacts")
+  guarantorAddress  String?       @map("guarantor_address")
+  dueDate           DateTime?     @map("due_date") @db.Date
+  bill              Decimal?      @db.Decimal(12, 2)
   balance           Decimal       @default(0) @db.Decimal(12, 2)
   lastPayment       DateTime?     @map("last_payment") @db.Date
+  remarks           String?
   status            AccountStatus @default(pending)
   assignedOfficerId String?       @map("assigned_officer_id")
   createdAt         DateTime      @default(now()) @map("created_at")
@@ -83,16 +99,20 @@ model AccountHistory {
 }
 
 model Visit {
-  id          String           @id @default(uuid())
-  accountId   String           @map("account_id")
-  officerId   String           @map("officer_id")
-  remarkType  VisitRemarkType? @map("remark_type")
-  ptpAmount   Decimal?         @map("ptp_amount") @db.Decimal(12, 2)
-  ptpDate     DateTime?        @map("ptp_date") @db.Date
-  notes       String?
-  gpsVerified Boolean          @default(false) @map("gps_verified")
-  synced      Boolean          @default(true)
-  createdAt   DateTime         @default(now()) @map("created_at")
+  id                String           @id @default(uuid())
+  accountId         String           @map("account_id")
+  officerId         String           @map("officer_id")
+  remarkType        VisitRemarkType? @map("remark_type")
+  ptpAmount         Decimal?         @map("ptp_amount") @db.Decimal(12, 2)
+  ptpDate           DateTime?        @map("ptp_date") @db.Date
+  scheduledDate     DateTime?        @map("scheduled_date") @db.Date
+  notes             String?
+  gpsVerified       Boolean          @default(false) @map("gps_verified")
+  housePhoto        String?          @map("house_photo") @db.Text
+  clientPhoto       String?          @map("client_photo") @db.Text
+  additionalPhotos  String?          @map("additional_photos") @db.Text
+  synced            Boolean          @default(true)
+  createdAt         DateTime         @default(now()) @map("created_at")
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   officer User    @relation(fields: [officerId], references: [id])

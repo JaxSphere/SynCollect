@@ -28,14 +28,37 @@ export type ApiHistoryEntry = {
   notes?: string;
 };
 
+export type ApiVisit = {
+  id: string;
+  accountId: string;
+  remarkType: string;
+  housePhoto?: string;
+  clientPhoto?: string;
+  additionalPhotos?: string[];
+  ptpAmount?: number;
+  ptpDate?: string;
+  scheduledDate?: string;
+  notes?: string;
+  gpsVerified: boolean;
+  createdAt: string;
+};
+
 export type ApiAccount = {
   id: string;
   accountNumber: number;
   debtorName: string;
   debtorPhone: string | null;
   debtorAddress: string | null;
+  yearAccount: number | null;
+  guarantorName: string | null;
+  relationship: string | null;
+  guarantorContacts: string | null;
+  guarantorAddress: string | null;
+  dueDate: string | null;
+  bill: number | null;
   balance: number;
   lastPayment: string | null;
+  remarks: string | null;
   status: string;
   assignedOfficerId: string | null;
   assignedOfficerName?: string | null;

@@ -5,7 +5,19 @@ import { useAccount } from '../hooks/useAccounts';
 import { OfflineBanner } from './OfflineBanner';
 import { createVisit } from '../../shared/api/visits';
 
-type RemarkType = 'unlocated' | 'moved_out' | 'refused' | 'willing' | '';
+type RemarkType =
+  | 'unlocated'
+  | 'moved_out'
+  | 'refused'
+  | 'willing'
+  | 'responsed'
+  | 'full_paid'
+  | 'refuse_to_receive_and_sign'
+  | 'for_follow_up'
+  | 'dont_have_capacity_to_pay'
+  | 'onhold_account'
+  | 'difficult_to_reach_out'
+  | '';
 
 export function VisitScreen() {
   const { accountId } = useParams();
@@ -16,8 +28,10 @@ export function VisitScreen() {
   const [housePhoto, setHousePhoto] = useState<string | null>(null);
   const [clientPhoto, setClientPhoto] = useState<string | null>(null);
   const [remarkType, setRemarkType] = useState<RemarkType>('');
+  const [scheduledDate, setScheduledDate] = useState<string>('');
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [notes, setNotes] = useState('');
-  const [additionalImages, setAdditionalImages] = useState<string[]>([]);
+  const [additionalPhotos, setAdditionalPhotos] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -25,27 +39,52 @@ export function VisitScreen() {
   const clientInputRef = useRef<HTMLInputElement>(null);
   const additionalInputRef = useRef<HTMLInputElement>(null);
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+  const ALLOWED_FORMATS = ['image/jpeg', 'image/png'];
+
+  const validateFile = (file: File): { valid: boolean; error?: string } => {
+    if (!ALLOWED_FORMATS.includes(file.type)) {
+      return { valid: false, error: 'Invalid file format. Please upload a JPEG or PNG file.' };
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      return { valid: false, error: 'File size exceeds the 5 MB limit. Please compress or upload a smaller file.' };
+    }
+    return { valid: true };
+  };
+
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     setter: React.Dispatch<React.SetStateAction<string | null>>
   ) => {
     const file = e.target.files?.[0];
     if (file) {
+      const validation = validateFile(file);
+      if (!validation.valid) {
+        setSubmitError(validation.error || 'Invalid file');
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setter(reader.result as string);
+        setSubmitError(null);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleAdditionalImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAdditionalPhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
       Array.from(files).forEach(file => {
+        const validation = validateFile(file);
+        if (!validation.valid) {
+          setSubmitError(validation.error || 'Invalid file');
+          return;
+        }
         const reader = new FileReader();
         reader.onloadend = () => {
-          setAdditionalImages(prev => [...prev, reader.result as string]);
+          setAdditionalPhotos(prev => [...prev, reader.result as string]);
+          setSubmitError(null);
         };
         reader.readAsDataURL(file);
       });
@@ -56,9 +95,29 @@ export function VisitScreen() {
     setGpsVerified(true);
   };
 
+  const followUpRemarks: RemarkType[] = [
+    'unlocated',
+    'refuse_to_receive_and_sign',
+    'for_follow_up',
+    'dont_have_capacity_to_pay',
+    'difficult_to_reach_out',
+  ];
+
+  const isFollowUpRemark = followUpRemarks.includes(remarkType);
+
   const handleSubmit = async () => {
-    if (!remarkType || !housePhoto || !clientPhoto) {
-      setSubmitError('Please complete all required fields');
+    if (!housePhoto || !clientPhoto) {
+      setSubmitError('At least one photo is required to complete this visit. Please take a photo and try again.');
+      return;
+    }
+
+    if (!remarkType) {
+      setSubmitError('Please select a visit remark to continue.');
+      return;
+    }
+
+    if (isFollowUpRemark && !scheduledDate) {
+      setShowScheduleModal(true);
       return;
     }
 
@@ -71,13 +130,16 @@ export function VisitScreen() {
     setSubmitError(null);
 
     try {
-      if (remarkType === 'willing') {
-        // For willing to pay, pass data to PTP screen without submitting yet
+      if (remarkType === 'willing' || remarkType === 'responsed') {
+        // For payment responses, pass data to PTP screen without submitting yet
         navigate(`/fo/ptp/${accountId}`, {
           state: {
             visitData: {
               accountId,
               remarkType,
+              housePhoto,
+              clientPhoto,
+              additionalPhotos,
               notes: notes || undefined,
               gpsVerified,
             }
@@ -87,7 +149,11 @@ export function VisitScreen() {
         // For other remarks, submit immediately
         await createVisit({
           accountId,
-          remarkType: remarkType as 'willing' | 'unlocated' | 'moved_out' | 'refused',
+          remarkType,
+          housePhoto,
+          clientPhoto,
+          additionalPhotos,
+          scheduledDate: isFollowUpRemark ? scheduledDate : undefined,
           notes: notes || undefined,
           gpsVerified,
         });
@@ -98,6 +164,15 @@ export function VisitScreen() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleScheduleConfirm = async () => {
+    if (!scheduledDate) {
+      setSubmitError('Please select a reschedule date before continuing.');
+      return;
+    }
+    setShowScheduleModal(false);
+    await handleSubmit();
   };
 
   if (loading) {
@@ -234,9 +309,14 @@ export function VisitScreen() {
           <div className="space-y-3 mb-4">
             {[
               { value: 'unlocated', label: 'Unlocated', color: 'border-red-500 bg-red-50' },
-              { value: 'moved_out', label: 'Moved Out', color: 'border-orange-500 bg-orange-50' },
-              { value: 'refused', label: 'Refused to Pay', color: 'border-yellow-500 bg-yellow-50' },
-              { value: 'willing', label: 'Willing to Pay', color: 'border-green-500 bg-green-50' },
+              { value: 'transfer_residence', label: 'Transfer Residence', color: 'border-orange-500 bg-orange-50' },
+              { value: 'responsed', label: 'Responsed', color: 'border-green-500 bg-green-50' },
+              { value: 'full_paid', label: 'Full Paid', color: 'border-slate-500 bg-slate-50' },
+              { value: 'refuse_to_receive_and_sign', label: 'Refuse to Receive and Sign', color: 'border-yellow-500 bg-yellow-50' },
+              { value: 'for_follow_up', label: 'For Follow Up', color: 'border-blue-500 bg-blue-50' },
+              { value: 'dont_have_capacity_to_pay', label: 'Don’t Have Capacity to Pay', color: 'border-orange-500 bg-orange-50' },
+              { value: 'onhold_account', label: 'Onhold Account', color: 'border-slate-500 bg-slate-50' },
+              { value: 'difficult_to_reach_out', label: 'Difficult to Reach Out', color: 'border-red-500 bg-red-50' },
             ].map((option) => (
               <label
                 key={option.value}
@@ -281,7 +361,7 @@ export function VisitScreen() {
               type="file"
               accept="image/*"
               multiple
-              onChange={handleAdditionalImages}
+              onChange={handleAdditionalPhotos}
               className="hidden"
             />
             <button
@@ -291,9 +371,9 @@ export function VisitScreen() {
               <Upload className="w-5 h-5 text-gray-600" />
               <span className="text-sm text-gray-700">Upload Additional Images</span>
             </button>
-            {additionalImages.length > 0 && (
+            {additionalPhotos.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mt-3">
-                {additionalImages.map((img, idx) => (
+                {additionalPhotos.map((img, idx) => (
                   <img key={idx} src={img} alt={`Additional ${idx + 1}`} className="w-full h-24 object-cover rounded-lg" />
                 ))}
               </div>
@@ -320,6 +400,43 @@ export function VisitScreen() {
           {submitting ? 'Submitting...' : (remarkType === 'willing' ? 'Continue to PTP Entry' : 'Submit Visit Report')}
         </button>
       </div>
+
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Reschedule Follow-up</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              This remark requires a follow-up date. Please choose a reschedule date that will appear on your schedule.
+            </p>
+            <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="reschedule-date">
+              Reschedule Date
+            </label>
+            <input
+              id="reschedule-date"
+              type="date"
+              value={scheduledDate}
+              onChange={(e) => setScheduledDate(e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div className="mt-6 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(false)}
+                className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleScheduleConfirm}
+                className="flex-1 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              >
+                Confirm Date
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

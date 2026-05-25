@@ -3,9 +3,19 @@ import type { ApiAccount } from "./types";
 
 export type CreateAccountRequest = {
   debtorName: string;
+  accountNumber: number;
   debtorPhone?: string;
   debtorAddress?: string;
+  yearAccount?: number;
+  guarantorName?: string;
+  relationship?: string;
+  guarantorContacts?: string;
+  guarantorAddress?: string;
+  dueDate?: string;
+  bill?: number;
   balance?: number;
+  lastPayment?: string;
+  remarks?: string;
   assignedOfficerId?: string;
 };
 
@@ -13,8 +23,19 @@ export type UpdateAccountRequest = {
   debtorName?: string;
   debtorPhone?: string;
   debtorAddress?: string;
+  accountNumber?: number;
+  yearAccount?: number | null;
+  guarantorName?: string;
+  relationship?: string;
+  guarantorContacts?: string;
+  guarantorAddress?: string;
+  dueDate?: string | null;
+  bill?: number | null;
   balance?: number;
+  lastPayment?: string | null;
+  remarks?: string;
   assignedOfficerId?: string;
+  creditorReference?: string;
 };
 
 export function fetchAccounts() {

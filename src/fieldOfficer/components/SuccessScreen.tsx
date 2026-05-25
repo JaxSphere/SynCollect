@@ -19,10 +19,25 @@ export function SuccessScreen() {
     switch (remarkType) {
       case 'willing':
         return 'Promise to Pay recorded successfully!';
+      case 'responsed':
+        return 'Debtor responded; proceed with payment entry.';
       case 'unlocated':
         return 'Visit marked as Unlocated';
       case 'moved_out':
-        return 'Visit marked as Moved Out';
+      case 'transfer_residence':
+        return 'Visit marked as Transfer Residence';
+      case 'full_paid':
+        return 'Visit marked as Full Paid';
+      case 'refuse_to_receive_and_sign':
+        return 'Visit marked as Refuse to Receive and Sign';
+      case 'for_follow_up':
+        return 'Visit marked for follow up';
+      case 'dont_have_capacity_to_pay':
+        return 'Visit marked as Don’t Have Capacity to Pay';
+      case 'onhold_account':
+        return 'Visit marked as Onhold Account';
+      case 'difficult_to_reach_out':
+        return 'Visit marked as Difficult to Reach Out';
       case 'refused':
         return 'Visit marked as Refused to Pay';
       default:

@@ -20,7 +20,16 @@ const defaultForm = {
   debtorName: "",
   debtorPhone: "",
   debtorAddress: "",
+  accountNumber: "",
+  yearAccount: "",
+  guarantorName: "",
+  relationship: "",
+  guarantorContacts: "",
+  guarantorAddress: "",
+  dueDate: "",
+  bill: "",
   balance: 0,
+  lastPayment: "",
   assignedOfficerId: "",
 };
 
@@ -52,6 +61,10 @@ function getAccountActionId(account: ApiAccount): string {
   return String(account.id || account.accountNumber || "").trim();
 }
 
+function optionalNumber(value: string) {
+  return value.trim() ? Number(value) : undefined;
+}
+
 export function AccountManagement() {
   const [accounts, setAccounts] = useState<ApiAccount[]>([]);
   const [officers, setOfficers] = useState<ApiUser[]>([]);
@@ -66,7 +79,7 @@ export function AccountManagement() {
   const [form, setForm] = useState(defaultForm);
 
   const isFormValid = useMemo(() => {
-    return form.debtorName.trim().length > 0;
+    return form.debtorName.trim().length > 0 && form.accountNumber.trim().length > 0;
   }, [form]);
 
   const loadAccounts = async () => {
@@ -122,7 +135,16 @@ export function AccountManagement() {
       debtorName: account.debtorName,
       debtorPhone: account.debtorPhone ?? "",
       debtorAddress: account.debtorAddress ?? "",
+      accountNumber: account.accountNumber?.toString() ?? "",
+      yearAccount: account.yearAccount?.toString() ?? "",
+      guarantorName: account.guarantorName ?? "",
+      relationship: account.relationship ?? "",
+      guarantorContacts: account.guarantorContacts ?? "",
+      guarantorAddress: account.guarantorAddress ?? "",
+      dueDate: account.dueDate ?? "",
+      bill: account.bill?.toString() ?? "",
       balance: account.balance,
+      lastPayment: account.lastPayment ?? "",
       assignedOfficerId: account.assignedOfficerId ?? "",
     });
     setShowForm(true);
@@ -131,7 +153,7 @@ export function AccountManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) {
-      setError("Debtor name is required.");
+      setError("Debtor name and account number are required.");
       return;
     }
 
@@ -144,15 +166,33 @@ export function AccountManagement() {
           debtorName: form.debtorName.trim(),
           debtorPhone: form.debtorPhone.trim() || undefined,
           debtorAddress: form.debtorAddress.trim() || undefined,
+          accountNumber: Number(form.accountNumber),
+          yearAccount: optionalNumber(form.yearAccount),
+          guarantorName: form.guarantorName.trim() || undefined,
+          relationship: form.relationship.trim() || undefined,
+          guarantorContacts: form.guarantorContacts.trim() || undefined,
+          guarantorAddress: form.guarantorAddress.trim() || undefined,
+          dueDate: form.dueDate || null,
+          bill: optionalNumber(form.bill),
           balance: form.balance,
+          lastPayment: form.lastPayment || null,
           assignedOfficerId: form.assignedOfficerId.trim() || undefined,
         });
       } else {
         await createAccount({
           debtorName: form.debtorName.trim(),
+          accountNumber: Number(form.accountNumber),
           debtorPhone: form.debtorPhone.trim() || undefined,
           debtorAddress: form.debtorAddress.trim() || undefined,
+          yearAccount: optionalNumber(form.yearAccount),
+          guarantorName: form.guarantorName.trim() || undefined,
+          relationship: form.relationship.trim() || undefined,
+          guarantorContacts: form.guarantorContacts.trim() || undefined,
+          guarantorAddress: form.guarantorAddress.trim() || undefined,
+          dueDate: form.dueDate || undefined,
+          bill: optionalNumber(form.bill),
           balance: form.balance,
+          lastPayment: form.lastPayment || undefined,
           assignedOfficerId: form.assignedOfficerId.trim() || undefined,
         });
       }
@@ -385,24 +425,13 @@ export function AccountManagement() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+          <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               {editingAccountId ? "Edit Account" : "Create New Account"}
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {editingAccountId ? (
-                <div className="rounded-lg border border-gray-200 bg-slate-50 p-3 text-sm text-gray-700">
-                  <p className="font-medium text-gray-900">Account # {editingAccountNumber ?? editingAccountId}</p>
-                  <p className="mt-1 text-gray-500">Account numbers are generated automatically and cannot be changed.</p>
-                </div>
-              ) : (
-                <div className="rounded-lg border border-gray-200 bg-slate-50 p-3 text-sm text-gray-700">
-                  <p className="font-medium text-gray-900">Account ID is automatic</p>
-                  <p className="mt-1 text-gray-500">A new account number will be generated when you save.</p>
-                </div>
-              )}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Debtor Name *</label>
+                <label className="block text-sm font-medium text-gray-700">Client Name *</label>
                 <input
                   type="text"
                   value={form.debtorName}
@@ -411,7 +440,7 @@ export function AccountManagement() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Phone</label>
+                <label className="block text-sm font-medium text-gray-700">Client's Contact</label>
                 <input
                   type="tel"
                   value={form.debtorPhone}
@@ -420,7 +449,7 @@ export function AccountManagement() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Address</label>
+                <label className="block text-sm font-medium text-gray-700">Client's Address</label>
                 <input
                   type="text"
                   value={form.debtorAddress}
@@ -429,13 +458,97 @@ export function AccountManagement() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Balance (PHP)</label>
+                <label className="block text-sm font-medium text-gray-700">Account Number *</label>
                 <input
                   type="number"
-                  value={form.balance}
-                  onChange={(e) => setForm((prev) => ({ ...prev, balance: Number(e.target.value) }))}
+                  value={form.accountNumber}
+                  onChange={(e) => setForm((prev) => ({ ...prev, accountNumber: e.target.value }))}
+                  placeholder=""
                   className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
                 />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Year Account</label>
+                  <input
+                    type="number"
+                    value={form.yearAccount}
+                    onChange={(e) => setForm((prev) => ({ ...prev, yearAccount: e.target.value }))}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Due Date</label>
+                  <input
+                    type="date"
+                    value={form.dueDate}
+                    onChange={(e) => setForm((prev) => ({ ...prev, dueDate: e.target.value }))}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Bill (PHP)</label>
+                  <input
+                    type="number"
+                    value={form.bill}
+                    onChange={(e) => setForm((prev) => ({ ...prev, bill: e.target.value }))}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Balance (PHP)</label>
+                  <input
+                    type="number"
+                    value={form.balance}
+                    onChange={(e) => setForm((prev) => ({ ...prev, balance: Number(e.target.value) }))}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Last Payment</label>
+                  <input
+                    type="date"
+                    value={form.lastPayment}
+                    onChange={(e) => setForm((prev) => ({ ...prev, lastPayment: e.target.value }))}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Relationship</label>
+                  <input
+                    type="text"
+                    value={form.relationship}
+                    onChange={(e) => setForm((prev) => ({ ...prev, relationship: e.target.value }))}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Guarantor's Name</label>
+                  <input
+                    type="text"
+                    value={form.guarantorName}
+                    onChange={(e) => setForm((prev) => ({ ...prev, guarantorName: e.target.value }))}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Guarantor's Contacts</label>
+                  <input
+                    type="tel"
+                    value={form.guarantorContacts}
+                    onChange={(e) => setForm((prev) => ({ ...prev, guarantorContacts: e.target.value }))}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">Guarantor's Address</label>
+                  <input
+                    type="text"
+                    value={form.guarantorAddress}
+                    onChange={(e) => setForm((prev) => ({ ...prev, guarantorAddress: e.target.value }))}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Assigned Officer</label>
