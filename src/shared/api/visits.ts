@@ -30,6 +30,10 @@ export type CreateVisitRequest = {
 export type VisitResponse = {
   id: string;
   accountId: string;
+  debtorName?: string;
+  accountNumber?: number;
+  officerId?: string;
+  officerName?: string;
   remarkType: VisitRemarkType;
   housePhoto?: string;
   clientPhoto?: string;

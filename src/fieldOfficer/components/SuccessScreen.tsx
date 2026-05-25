@@ -20,7 +20,7 @@ export function SuccessScreen() {
       case 'willing':
         return 'Promise to Pay recorded successfully!';
       case 'responsed':
-        return 'Debtor responded; proceed with payment entry.';
+        return 'Promise to Pay recorded successfully!';
       case 'unlocated':
         return 'Visit marked as Unlocated';
       case 'moved_out':
@@ -56,7 +56,7 @@ export function SuccessScreen() {
           <h1 className="text-3xl font-bold text-gray-900 mb-3">Success!</h1>
           <p className="text-xl text-gray-700 mb-6">{getMessage()}</p>
 
-          {remarkType === 'willing' && ptpAmount && ptpDate && (
+          {(remarkType === 'willing' || remarkType === 'responsed') && ptpAmount && ptpDate && (
             <div className="bg-green-50 rounded-lg p-4 mb-6">
               <div className="space-y-2 text-left">
                 <div className="flex justify-between">

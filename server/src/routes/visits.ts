@@ -86,6 +86,7 @@ visitsRouter.get("/", async (req, res) => {
 
     const visits = await prisma.visit.findMany({
       where: { accountId: account.id },
+      include: { officer: true },
       orderBy: { createdAt: "desc" },
     });
 
@@ -93,6 +94,8 @@ visitsRouter.get("/", async (req, res) => {
       visits.map((visit) => ({
         id: visit.id,
         accountId: visit.accountId,
+        officerId: visit.officerId,
+        officerName: visit.officer?.fullName ?? visit.officer?.username ?? undefined,
         remarkType: visit.remarkType,
         housePhoto: visit.housePhoto ?? undefined,
         clientPhoto: visit.clientPhoto ?? undefined,
@@ -113,7 +116,7 @@ visitsRouter.get("/", async (req, res) => {
 
   const visits = await prisma.visit.findMany({
     where: whereClause,
-    include: { account: true },
+    include: { account: true, officer: true },
     orderBy: { createdAt: "desc" },
   });
 
@@ -125,6 +128,8 @@ visitsRouter.get("/", async (req, res) => {
         accountId: visit.accountId,
         debtorName: visit.account?.debtorName ?? "",
         accountNumber: visit.account?.accountNumber,
+        officerId: visit.officerId,
+        officerName: visit.officer?.fullName ?? visit.officer?.username ?? undefined,
         remarkType: visit.remarkType,
         housePhoto: visit.housePhoto ?? undefined,
         clientPhoto: visit.clientPhoto ?? undefined,

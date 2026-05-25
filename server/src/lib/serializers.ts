@@ -19,6 +19,7 @@ export function serializeAccount(account: AccountWithHistory) {
     balance: Number(account.balance),
     lastPayment: account.lastPayment?.toISOString().slice(0, 10) ?? null,
     remarks: account.remarks,
+    creditor: (account as any).creditor ?? null,
     status: account.status,
     assignedOfficerId: account.assignedOfficerId,
     assignedOfficerName: account.assignedOfficer ? account.assignedOfficer.fullName ?? account.assignedOfficer.username : null,

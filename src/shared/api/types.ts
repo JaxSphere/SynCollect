@@ -31,6 +31,8 @@ export type ApiHistoryEntry = {
 export type ApiVisit = {
   id: string;
   accountId: string;
+  officerId?: string;
+  officerName?: string;
   remarkType: string;
   housePhoto?: string;
   clientPhoto?: string;
@@ -59,6 +61,7 @@ export type ApiAccount = {
   balance: number;
   lastPayment: string | null;
   remarks: string | null;
+  creditor: string | null;
   status: string;
   assignedOfficerId: string | null;
   assignedOfficerName?: string | null;

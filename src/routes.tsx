@@ -6,6 +6,8 @@ import { AdminLayout } from "./admin/components/AdminLayout";
 import { Dashboard } from "./manager/pages/Dashboard";
 import { AccountManagement } from "./manager/pages/AccountManagement";
 import { AdminUserManagement } from "./admin/pages/UserManagement";
+import { AdminAuditLog } from "./admin/pages/AuditLog";
+import { AdminAccessControl } from "./admin/pages/AccessControl";
 import { AccountDetail } from "./manager/pages/AccountDetail";
 import { DemandLetterGenerator } from "./manager/pages/DemandLetterGenerator";
 import { CalendarView } from "./manager/pages/CalendarView";
@@ -86,7 +88,11 @@ export const router = createBrowserRouter([
         path: "/admin",
         Component: AdminLayout,
         errorElement: <RouteError />,
-        children: [{ index: true, Component: AdminUserManagement }],
+        children: [
+          { index: true, Component: AdminUserManagement },
+          { path: "audit-logs", Component: AdminAuditLog },
+          { path: "access-control", Component: AdminAccessControl },
+        ],
       },
     ],
   },

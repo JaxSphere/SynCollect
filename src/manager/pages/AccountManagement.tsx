@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Search, Filter, Upload, ChevronDown, Eye, Pencil, Trash2, Plus } from "lucide-react";
+import { Search, Upload, ChevronDown, Eye, Pencil, Trash2, Plus, X, AlertTriangle } from "lucide-react";
 import { fetchAccounts, createAccount, updateAccount, deleteAccount } from "../../shared/api/accounts";
 import { fetchUsers } from "../../shared/api/users";
 import type { ApiAccount, ApiUser } from "../../shared/api/types";
@@ -30,6 +30,7 @@ const defaultForm = {
   bill: "",
   balance: 0,
   lastPayment: "",
+  creditor: "",
   assignedOfficerId: "",
 };
 
@@ -73,7 +74,9 @@ export function AccountManagement() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [creditorFilter, setCreditorFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [editingAccountNumber, setEditingAccountNumber] = useState<number | null>(null);
   const [form, setForm] = useState(defaultForm);
@@ -112,13 +115,19 @@ export function AccountManagement() {
     loadOfficers();
   }, []);
 
+  const creditorOptions = Array.from(
+    new Set(accounts.map((a) => a.creditor).filter(Boolean) as string[])
+  ).sort();
+
   const filteredAccounts = accounts.filter((account) => {
     const idMatch = String(account.accountNumber ?? account.id).toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSearch =
       account.debtorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (account.creditor ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       idMatch;
     const matchesStatus = statusFilter === "all" || account.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesCreditor = creditorFilter === "all" || account.creditor === creditorFilter;
+    return matchesSearch && matchesStatus && matchesCreditor;
   });
 
   const resetForm = () => {
@@ -145,6 +154,7 @@ export function AccountManagement() {
       bill: account.bill?.toString() ?? "",
       balance: account.balance,
       lastPayment: account.lastPayment ?? "",
+      creditor: account.creditor ?? "",
       assignedOfficerId: account.assignedOfficerId ?? "",
     });
     setShowForm(true);
@@ -176,6 +186,7 @@ export function AccountManagement() {
           bill: optionalNumber(form.bill),
           balance: form.balance,
           lastPayment: form.lastPayment || null,
+          creditor: form.creditor.trim() || undefined,
           assignedOfficerId: form.assignedOfficerId.trim() || undefined,
         });
       } else {
@@ -193,6 +204,7 @@ export function AccountManagement() {
           bill: optionalNumber(form.bill),
           balance: form.balance,
           lastPayment: form.lastPayment || undefined,
+          creditor: form.creditor.trim() || undefined,
           assignedOfficerId: form.assignedOfficerId.trim() || undefined,
         });
       }
@@ -205,24 +217,27 @@ export function AccountManagement() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (account: ApiAccount) => {
+    const id = getAccountActionId(account);
     if (!id.trim()) {
       setError("Account ID is required.");
       return;
     }
+    setDeleteTarget({ id, name: account.debtorName });
+  };
 
-    if (!window.confirm("Delete this account? This action cannot be undone.")) {
-      return;
-    }
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     setLoading(true);
     setError(null);
     try {
-      await deleteAccount(id);
+      await deleteAccount(deleteTarget.id);
       await loadAccounts();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to delete account.");
     } finally {
       setLoading(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -269,7 +284,7 @@ export function AccountManagement() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <div className="relative">
               <select
                 value={statusFilter}
@@ -285,17 +300,26 @@ export function AccountManagement() {
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              <Filter className="w-4 h-4" />
-              More Filters
-            </button>
+            <div className="relative">
+              <select
+                value={creditorFilter}
+                onChange={(e) => setCreditorFilter(e.target.value)}
+                className="appearance-none px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="all">All Creditors</option>
+                {creditorOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
         <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">Total Accounts</p>
+          <p className="text-sm text-gray-500">Total</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{accounts.length}</p>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -311,9 +335,27 @@ export function AccountManagement() {
           </p>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <p className="text-sm text-gray-500">Visited</p>
+          <p className="text-2xl font-bold text-purple-600 mt-1">
+            {accounts.filter((a) => a.status === "visited").length}
+          </p>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
           <p className="text-sm text-gray-500">Legal</p>
           <p className="text-2xl font-bold text-red-600 mt-1">
             {accounts.filter((a) => a.status === "legal").length}
+          </p>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <p className="text-sm text-gray-500">Unlocated</p>
+          <p className="text-2xl font-bold text-orange-500 mt-1">
+            {accounts.filter((a) => a.status === "unlocated").length}
+          </p>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <p className="text-sm text-gray-500">Closed</p>
+          <p className="text-2xl font-bold text-gray-500 mt-1">
+            {accounts.filter((a) => a.status === "closed").length}
           </p>
         </div>
       </div>
@@ -328,6 +370,9 @@ export function AccountManagement() {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Debtor Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Creditor
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Address
@@ -355,11 +400,20 @@ export function AccountManagement() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {account.debtorName}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {account.creditor ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        {account.creditor}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 text-sm text-gray-500 max-w-[180px] truncate">
                     {account.debtorAddress || "—"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                    PHP {account.balance.toLocaleString()}
+                    ₱{account.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -404,7 +458,7 @@ export function AccountManagement() {
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(getAccountActionId(account))}
+                      onClick={() => handleDelete(account)}
                       className="inline-flex items-center gap-1 text-red-600 hover:text-red-800"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -423,171 +477,295 @@ export function AccountManagement() {
         )}
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {editingAccountId ? "Edit Account" : "Create New Account"}
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Client Name *</label>
-                <input
-                  type="text"
-                  value={form.debtorName}
-                  onChange={(e) => setForm((prev) => ({ ...prev, debtorName: e.target.value }))}
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                />
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
+            <div className="p-6">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mx-auto mb-4">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Client's Contact</label>
-                <input
-                  type="tel"
-                  value={form.debtorPhone}
-                  onChange={(e) => setForm((prev) => ({ ...prev, debtorPhone: e.target.value }))}
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Client's Address</label>
-                <input
-                  type="text"
-                  value={form.debtorAddress}
-                  onChange={(e) => setForm((prev) => ({ ...prev, debtorAddress: e.target.value }))}
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Account Number *</label>
-                <input
-                  type="number"
-                  value={form.accountNumber}
-                  onChange={(e) => setForm((prev) => ({ ...prev, accountNumber: e.target.value }))}
-                  placeholder=""
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Year Account</label>
-                  <input
-                    type="number"
-                    value={form.yearAccount}
-                    onChange={(e) => setForm((prev) => ({ ...prev, yearAccount: e.target.value }))}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Due Date</label>
-                  <input
-                    type="date"
-                    value={form.dueDate}
-                    onChange={(e) => setForm((prev) => ({ ...prev, dueDate: e.target.value }))}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Bill (PHP)</label>
-                  <input
-                    type="number"
-                    value={form.bill}
-                    onChange={(e) => setForm((prev) => ({ ...prev, bill: e.target.value }))}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Balance (PHP)</label>
-                  <input
-                    type="number"
-                    value={form.balance}
-                    onChange={(e) => setForm((prev) => ({ ...prev, balance: Number(e.target.value) }))}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Last Payment</label>
-                  <input
-                    type="date"
-                    value={form.lastPayment}
-                    onChange={(e) => setForm((prev) => ({ ...prev, lastPayment: e.target.value }))}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Relationship</label>
-                  <input
-                    type="text"
-                    value={form.relationship}
-                    onChange={(e) => setForm((prev) => ({ ...prev, relationship: e.target.value }))}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Guarantor's Name</label>
-                  <input
-                    type="text"
-                    value={form.guarantorName}
-                    onChange={(e) => setForm((prev) => ({ ...prev, guarantorName: e.target.value }))}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Guarantor's Contacts</label>
-                  <input
-                    type="tel"
-                    value={form.guarantorContacts}
-                    onChange={(e) => setForm((prev) => ({ ...prev, guarantorContacts: e.target.value }))}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">Guarantor's Address</label>
-                  <input
-                    type="text"
-                    value={form.guarantorAddress}
-                    onChange={(e) => setForm((prev) => ({ ...prev, guarantorAddress: e.target.value }))}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Assigned Officer</label>
-                <select
-                  value={form.assignedOfficerId}
-                  onChange={(e) => setForm((prev) => ({ ...prev, assignedOfficerId: e.target.value }))}
-                  className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
-                >
-                  <option value="">Unassigned</option>
-                  {officers.map((officer) => (
-                    <option key={officer.id} value={officer.id}>
-                      {officer.fullName || officer.username}
-                    </option>
-                  ))}
-                </select>
-                {officersLoading && (
-                  <p className="mt-2 text-sm text-gray-500">Loading officers...</p>
-                )}
-                {!officersLoading && officers.length === 0 && (
-                  <p className="mt-2 text-sm text-gray-500">No field officers available yet.</p>
-                )}
-              </div>
-              <div className="flex gap-2 pt-4">
+              <h3 className="text-lg font-semibold text-gray-900 text-center mb-1">Delete Account</h3>
+              <p className="text-sm text-gray-500 text-center mb-1">
+                Are you sure you want to delete
+              </p>
+              <p className="text-sm font-semibold text-gray-800 text-center mb-4">
+                {deleteTarget.name}?
+              </p>
+              <p className="text-xs text-red-600 text-center mb-6">
+                This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
                 <button
-                  type="submit"
-                  disabled={!isFormValid || loading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300"
-                >
-                  {editingAccountId ? "Update" : "Create"}
-                </button>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {loading ? "Deleting…" : "Delete"}
+                </button>
               </div>
-            </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showForm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+
+            {/* ── Modal header ── */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {editingAccountId ? "Edit Account" : "Add New Account"}
+                </h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Fields marked <span className="text-red-500 font-medium">*</span> are required
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* ── Scrollable body ── */}
+            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
+
+              {/* Account Info */}
+              <section>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                  Account Info
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Account Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={form.accountNumber}
+                      onChange={(e) => setForm((prev) => ({ ...prev, accountNumber: e.target.value }))}
+                      placeholder="e.g. 100001"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Creditor
+                    </label>
+                    <input
+                      type="text"
+                      value={form.creditor}
+                      onChange={(e) => setForm((prev) => ({ ...prev, creditor: e.target.value }))}
+                      placeholder="e.g. BDO Bank, Asian Hospital"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Year Account</label>
+                    <input
+                      type="number"
+                      value={form.yearAccount}
+                      onChange={(e) => setForm((prev) => ({ ...prev, yearAccount: e.target.value }))}
+                      placeholder="e.g. 2024"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Officer</label>
+                    <select
+                      value={form.assignedOfficerId}
+                      onChange={(e) => setForm((prev) => ({ ...prev, assignedOfficerId: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">— Unassigned —</option>
+                      {officers.map((officer) => (
+                        <option key={officer.id} value={officer.id}>
+                          {officer.fullName || officer.username}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+              <hr className="border-gray-100" />
+
+              {/* Client Info */}
+              <section>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                  Client Info
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Client Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.debtorName}
+                      onChange={(e) => setForm((prev) => ({ ...prev, debtorName: e.target.value }))}
+                      placeholder="Full name of the debtor"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                    <input
+                      type="tel"
+                      value={form.debtorPhone}
+                      onChange={(e) => setForm((prev) => ({ ...prev, debtorPhone: e.target.value }))}
+                      placeholder="+63 9XX XXX XXXX"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                    <input
+                      type="text"
+                      value={form.debtorAddress}
+                      onChange={(e) => setForm((prev) => ({ ...prev, debtorAddress: e.target.value }))}
+                      placeholder="Street, Barangay, City"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <hr className="border-gray-100" />
+
+              {/* Payment Details */}
+              <section>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                  Payment Details
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bill Amount (PHP)</label>
+                    <input
+                      type="number"
+                      value={form.bill}
+                      onChange={(e) => setForm((prev) => ({ ...prev, bill: e.target.value }))}
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Outstanding Balance (PHP)</label>
+                    <input
+                      type="number"
+                      value={form.balance}
+                      onChange={(e) => setForm((prev) => ({ ...prev, balance: Number(e.target.value) }))}
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                    <input
+                      type="date"
+                      value={form.dueDate}
+                      onChange={(e) => setForm((prev) => ({ ...prev, dueDate: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Payment Date</label>
+                    <input
+                      type="date"
+                      value={form.lastPayment}
+                      onChange={(e) => setForm((prev) => ({ ...prev, lastPayment: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <hr className="border-gray-100" />
+
+              {/* Guarantor */}
+              <section>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                  Guarantor Details
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Guarantor Name</label>
+                    <input
+                      type="text"
+                      value={form.guarantorName}
+                      onChange={(e) => setForm((prev) => ({ ...prev, guarantorName: e.target.value }))}
+                      placeholder="Full name"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Relationship to Client</label>
+                    <input
+                      type="text"
+                      value={form.relationship}
+                      onChange={(e) => setForm((prev) => ({ ...prev, relationship: e.target.value }))}
+                      placeholder="e.g. Spouse, Parent, Sibling"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Guarantor Contact</label>
+                    <input
+                      type="tel"
+                      value={form.guarantorContacts}
+                      onChange={(e) => setForm((prev) => ({ ...prev, guarantorContacts: e.target.value }))}
+                      placeholder="+63 9XX XXX XXXX"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Guarantor Address</label>
+                    <input
+                      type="text"
+                      value={form.guarantorAddress}
+                      onChange={(e) => setForm((prev) => ({ ...prev, guarantorAddress: e.target.value }))}
+                      placeholder="Street, Barangay, City"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              </section>
+
+            </div>
+
+            {/* ── Modal footer ── */}
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={(e) => handleSubmit(e as any)}
+                disabled={!isFormValid || loading}
+                className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? "Saving…" : editingAccountId ? "Save Changes" : "Create Account"}
+              </button>
+            </div>
+
           </div>
         </div>
       )}

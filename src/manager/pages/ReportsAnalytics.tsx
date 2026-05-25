@@ -71,7 +71,7 @@ export function ReportsAnalytics() {
             <span className="text-sm font-medium text-green-600">+8.5%</span>
           </div>
           <div className="mt-4">
-            <p className="text-2xl font-bold text-gray-900">PHP {(totalCollections / 1000).toFixed(0)}K</p>
+            <p className="text-2xl font-bold text-gray-900">₱{(totalCollections / 1000).toFixed(0)}K</p>
             <p className="text-sm text-gray-500 mt-1">Total Collections</p>
           </div>
         </div>
@@ -247,7 +247,7 @@ export function ReportsAnalytics() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                      PHP {officer.collections.toLocaleString()}
+                      ₱{officer.collections.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{officer.accounts}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -262,7 +262,7 @@ export function ReportsAnalytics() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      PHP {Math.round(officer.collections / officer.accounts).toLocaleString()}
+                      ₱{Math.round(officer.collections / officer.accounts).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                 ))}

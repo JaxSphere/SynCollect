@@ -16,6 +16,7 @@ export type CreateAccountRequest = {
   balance?: number;
   lastPayment?: string;
   remarks?: string;
+  creditor?: string;
   assignedOfficerId?: string;
 };
 
@@ -34,8 +35,8 @@ export type UpdateAccountRequest = {
   balance?: number;
   lastPayment?: string | null;
   remarks?: string;
+  creditor?: string;
   assignedOfficerId?: string;
-  creditorReference?: string;
 };
 
 export function fetchAccounts() {

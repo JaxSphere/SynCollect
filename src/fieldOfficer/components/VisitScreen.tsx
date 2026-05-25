@@ -397,7 +397,7 @@ export function VisitScreen() {
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
-          {submitting ? 'Submitting...' : (remarkType === 'willing' ? 'Continue to PTP Entry' : 'Submit Visit Report')}
+          {submitting ? 'Submitting...' : ((remarkType === 'willing' || remarkType === 'responsed') ? 'Continue to PTP Entry' : 'Submit Visit Report')}
         </button>
       </div>
 

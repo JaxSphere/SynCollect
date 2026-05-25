@@ -27,7 +27,7 @@ function formatDate(value: string | null | undefined) {
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "-";
-  return `PHP ${Number(value).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
+  return `₱${Number(value).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 }
 
 function DetailItem({ label, value }: { label: string; value: ReactNode }) {
@@ -209,6 +209,7 @@ export function AccountDetail() {
             <h4 className="text-sm font-semibold uppercase text-gray-500 mb-4">Client</h4>
             <div className="space-y-4">
               <DetailItem label="Creditor Account Reference" value={emptyText(account.accountNumber)} />
+              <DetailItem label="Creditor" value={emptyText(account.creditor)} />
               <DetailItem label="Client Name" value={emptyText(account.debtorName)} />
               <DetailItem label="Client's Address" value={emptyText(account.debtorAddress)} />
               <DetailItem label="Client's Contact" value={emptyText(account.debtorPhone)} />
@@ -273,7 +274,7 @@ export function AccountDetail() {
                       {entry.amount && (
                         <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded font-semibold">
                           <DollarSign className="w-3 h-3" />
-                          PHP {Number(entry.amount).toLocaleString("en-PH")}
+                          ₱{Number(entry.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
                         </div>
                       )}
                     </div>
@@ -314,9 +315,12 @@ export function AccountDetail() {
                     <div>
                       <p className="font-medium text-gray-900">{visit.remarkType.replace(/_/g, " ")}</p>
                       <p className="text-sm text-gray-500">{new Date(visit.createdAt).toLocaleString()}</p>
+                      {visit.officerName && (
+                        <p className="text-sm text-blue-600 mt-0.5">Officer: {visit.officerName}</p>
+                      )}
                     </div>
                     {visit.ptpAmount ? (
-                      <span className="text-sm text-green-700 font-semibold">PHP {Number(visit.ptpAmount).toLocaleString("en-PH")}</span>
+                      <span className="text-sm text-green-700 font-semibold">₱{Number(visit.ptpAmount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
                     ) : null}
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -357,7 +361,7 @@ export function AccountDetail() {
                       {new Date(ptp.date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                      {ptp.amount ? `PHP ${Number(ptp.amount).toLocaleString("en-PH")}` : "-"}
+                      {ptp.amount ? `₱${Number(ptp.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}` : "-"}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">{ptp.notes || "-"}</td>
                   </tr>

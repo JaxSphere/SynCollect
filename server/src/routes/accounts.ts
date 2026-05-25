@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../db.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { serializeAccount } from "../lib/serializers.js";
+import { logAudit } from "../lib/auditLogger.js";
 import { UserRole } from "@prisma/client";
 
 export const accountsRouter = Router();
@@ -76,6 +77,7 @@ accountsRouter.post("/", requireRole(UserRole.manager, UserRole.admin), async (r
     balance,
     lastPayment,
     remarks,
+    creditor,
     assignedOfficerId,
   } = req.body as {
     debtorName?: string;
@@ -92,6 +94,7 @@ accountsRouter.post("/", requireRole(UserRole.manager, UserRole.admin), async (r
     balance?: number;
     lastPayment?: string;
     remarks?: string;
+    creditor?: string;
     assignedOfficerId?: string;
   };
 
@@ -128,9 +131,19 @@ accountsRouter.post("/", requireRole(UserRole.manager, UserRole.admin), async (r
       balance: balance ?? 0,
       lastPayment: optionalDate(lastPayment),
       remarks: optionalText(remarks),
+      creditor: optionalText(creditor),
       assignedOfficerId: assignedOfficerId || null,
-    },
+    } as any,
     include: { history: true, assignedOfficer: true },
+  });
+
+  await logAudit({
+    action: "ACCOUNT_CREATED",
+    targetType: "ACCOUNT",
+    targetId: account.id,
+    targetName: `${debtorName.trim()} (#${accountNumber})`,
+    performedById: req.user!.userId,
+    performedBy: req.user!.username,
   });
 
   return res.status(201).json(serializeAccount(account));
@@ -151,6 +164,7 @@ accountsRouter.put("/:id", requireRole(UserRole.manager, UserRole.admin), async 
     balance,
     lastPayment,
     remarks,
+    creditor,
     assignedOfficerId,
     accountNumber,
   } = req.body as {
@@ -167,6 +181,7 @@ accountsRouter.put("/:id", requireRole(UserRole.manager, UserRole.admin), async 
     balance?: number;
     lastPayment?: string | null;
     remarks?: string;
+    creditor?: string;
     assignedOfficerId?: string;
     accountNumber?: number;
   };
@@ -207,6 +222,7 @@ accountsRouter.put("/:id", requireRole(UserRole.manager, UserRole.admin), async 
     balance?: number;
     lastPayment?: Date | null;
     remarks?: string | null;
+    creditor?: string | null;
     assignedOfficerId?: string | null;
     accountNumber?: number;
   } = {};
@@ -224,6 +240,7 @@ accountsRouter.put("/:id", requireRole(UserRole.manager, UserRole.admin), async 
   if (balance !== undefined) data.balance = balance;
   if (lastPayment !== undefined) data.lastPayment = optionalDate(lastPayment);
   if (remarks !== undefined) data.remarks = optionalText(remarks);
+  if (creditor !== undefined) data.creditor = optionalText(creditor);
   if (assignedOfficerId !== undefined) data.assignedOfficerId = assignedOfficerId || null;
   if (accountNumber !== undefined) data.accountNumber = accountNumber;
 
@@ -234,9 +251,20 @@ accountsRouter.put("/:id", requireRole(UserRole.manager, UserRole.admin), async 
   try {
     const account = await prisma.account.update({
       where: where as any,
-      data,
+      data: data as any,
       include: { history: true, assignedOfficer: true },
     });
+
+    await logAudit({
+      action: "ACCOUNT_UPDATED",
+      targetType: "ACCOUNT",
+      targetId: account.id,
+      targetName: `${account.debtorName} (#${account.accountNumber})`,
+      performedById: req.user!.userId,
+      performedBy: req.user!.username,
+      details: { updatedFields: Object.keys(data) },
+    });
+
     return res.json(serializeAccount(account));
   } catch {
     return res.status(404).json({ error: "Account not found." });
@@ -252,7 +280,20 @@ accountsRouter.delete("/:id", requireRole(UserRole.manager, UserRole.admin), asy
   const where = /^[0-9]+$/.test(rawAccountId) ? { accountNumber: Number(rawAccountId) } : { id: rawAccountId };
 
   try {
+    const account = await prisma.account.findUnique({ where: where as any, select: { id: true, debtorName: true, accountNumber: true } });
     await prisma.account.delete({ where: where as any });
+
+    if (account) {
+      await logAudit({
+        action: "ACCOUNT_DELETED",
+        targetType: "ACCOUNT",
+        targetId: account.id,
+        targetName: `${account.debtorName} (#${account.accountNumber})`,
+        performedById: req.user!.userId,
+        performedBy: req.user!.username,
+      });
+    }
+
     return res.status(204).send();
   } catch {
     return res.status(404).json({ error: "Account not found." });

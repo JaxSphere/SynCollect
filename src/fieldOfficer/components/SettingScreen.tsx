@@ -162,7 +162,7 @@ export function SettingsScreen() {
 
       {/* Bottom Navigation */}
       <div
-        className="fixed bottom-0 left-0 right-0 flex items-center justify-around px-6 py-3"
+        className="fixed bottom-0 left-0 right-0 flex items-center justify-around px-6 py-5"
         style={{
           background: 'rgba(13, 27, 56, 0.95)',
           borderTop: '1px solid rgba(255,255,255,0.08)',
@@ -175,7 +175,7 @@ export function SettingsScreen() {
           className="flex flex-col items-center gap-1 text-blue-400 opacity-60"
           aria-label="Home"
         >
-          <Home className="w-5 h-5" />
+          <Home className="w-6 h-6" />
         </button>
 
         <button
@@ -184,7 +184,7 @@ export function SettingsScreen() {
           className="flex flex-col items-center gap-1 text-blue-400 opacity-60"
           aria-label="Schedule"
         >
-          <CalendarDays className="w-5 h-5" />
+          <CalendarDays className="w-6 h-6" />
         </button>
 
         <button
@@ -193,7 +193,7 @@ export function SettingsScreen() {
           className="flex flex-col items-center gap-1 text-white"
           aria-label="Settings"
         >
-          <Settings className="w-5 h-5" />
+          <Settings className="w-6 h-6" />
         </button>
       </div>
     </div>

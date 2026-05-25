@@ -71,6 +71,7 @@ model Account {
   balance           Decimal       @default(0) @db.Decimal(12, 2)
   lastPayment       DateTime?     @map("last_payment") @db.Date
   remarks           String?
+  creditor          String?
   status            AccountStatus @default(pending)
   assignedOfficerId String?       @map("assigned_officer_id")
   createdAt         DateTime      @default(now()) @map("created_at")
@@ -96,6 +97,20 @@ model AccountHistory {
   author  User?   @relation(fields: [createdBy], references: [id])
 
   @@map("account_history")
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  action        String
+  targetType    String   @map("target_type")
+  targetId      String   @map("target_id")
+  targetName    String?  @map("target_name")
+  performedById String?  @map("performed_by_id")
+  performedBy   String?  @map("performed_by")
+  details       String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
 }
 
 model Visit {

@@ -31,7 +31,7 @@ export function AccountDetailScreen() {
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
 
-    if (titleCased.toLowerCase() === 'willing') {
+    if (titleCased.toLowerCase() === 'willing' || normalized.toUpperCase() === 'PTP') {
       return 'Promise to Pay';
     }
 
@@ -96,6 +96,12 @@ export function AccountDetailScreen() {
                 <p className="text-xs uppercase tracking-wide text-gray-500">Account Number</p>
                 <p className="font-medium text-gray-900">{account.accountNumber}</p>
               </div>
+              {account.creditor && (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Creditor</p>
+                  <p className="font-medium text-gray-900">{account.creditor}</p>
+                </div>
+              )}
               <div>
                 <p className="text-xs uppercase tracking-wide text-gray-500">Year Account</p>
                 <p className="font-medium text-gray-900">{account.yearAccount ?? '—'}</p>
